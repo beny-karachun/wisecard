@@ -263,3 +263,72 @@ export async function createActivity(formData: FormData) {
   if (data.contactId) revalidatePath(`/app/contacts/${data.contactId}`);
   if (data.caseId) revalidatePath(`/app/cases/${data.caseId}`);
 }
+
+// ---------------------------------------------------------------------------
+// Scenarios (saved mortgage mixes)
+// ---------------------------------------------------------------------------
+
+const scenarioSchema = z.object({
+  caseId: z.string().min(1),
+  label: z.string().trim().optional(),
+  amount: z.number().int().nonnegative(),
+  termMonths: z.number().int().positive(),
+  cpi: z.number(),
+  firstPayment: z.number(),
+  totalPaid: z.number(),
+  feasible: z.boolean(),
+  legs: z
+    .array(
+      z.object({
+        type: z.enum([
+          "PRIME",
+          "FIXED_UNLINKED",
+          "FIXED_LINKED",
+          "VARIABLE_UNLINKED",
+          "VARIABLE_LINKED",
+        ]),
+        pct: z.number(),
+        rate: z.number(),
+      }),
+    )
+    .min(1),
+});
+
+export async function saveScenario(input: unknown) {
+  const { organizationId } = await requireUser();
+  const data = scenarioSchema.parse(input);
+
+  const owned = await prisma.case.findFirst({
+    where: { id: data.caseId, organizationId },
+    select: { id: true },
+  });
+  if (!owned) redirect("/app/cases");
+
+  await prisma.scenario.create({
+    data: {
+      organizationId,
+      caseId: data.caseId,
+      label: data.label ?? null,
+      amount: data.amount,
+      termMonths: data.termMonths,
+      cpi: data.cpi,
+      firstPayment: Math.round(data.firstPayment),
+      totalPaid: Math.round(data.totalPaid),
+      feasible: data.feasible,
+      legs: data.legs,
+    },
+  });
+
+  revalidatePath(`/app/cases/${data.caseId}`);
+  redirect(`/app/cases/${data.caseId}`);
+}
+
+export async function deleteScenario(id: string) {
+  const { organizationId } = await requireUser();
+  const scenario = await prisma.scenario.findFirst({
+    where: { id, organizationId },
+    select: { caseId: true },
+  });
+  await prisma.scenario.deleteMany({ where: { id, organizationId } });
+  if (scenario?.caseId) revalidatePath(`/app/cases/${scenario.caseId}`);
+}

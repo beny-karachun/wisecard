@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   defaultRates,
   evaluateMix,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/mortgage/engine";
 import { DEFAULT_CPI, MAX_TERM_MONTHS, type TrackType } from "@/lib/mortgage/tracks";
 import { formatCurrency } from "@/lib/format";
+import { saveScenario } from "@/app/app/actions";
 
 const TRACK_COLORS: Record<TrackType, string> = {
   PRIME: "bg-indigo-500",
@@ -143,7 +144,13 @@ function NumField({
   );
 }
 
-export function Simulator({ initialAmount }: { initialAmount: number }) {
+export function Simulator({
+  initialAmount,
+  caseId,
+}: {
+  initialAmount: number;
+  caseId?: string;
+}) {
   const [amount, setAmount] = useState<number | "">(initialAmount);
   const [years, setYears] = useState<number | "">(25);
   const [income, setIncome] = useState<number | "">("");
@@ -184,6 +191,28 @@ export function Simulator({ initialAmount }: { initialAmount: number }) {
       monthlyIncome: incomeN,
     });
   }, [alloc, allocSum, amountN, termMonths, rates, cpiN, incomeN]);
+
+  const [saving, startSaving] = useTransition();
+  function handleSave() {
+    if (!caseId || !manual) return;
+    const legs = manual.legs.map((l) => ({
+      type: l.type,
+      pct: l.pct,
+      rate: l.rate,
+    }));
+    startSaving(() =>
+      saveScenario({
+        caseId,
+        amount: amountN,
+        termMonths,
+        cpi: cpiN,
+        firstPayment: manual.firstPayment,
+        totalPaid: manual.totalPaid,
+        feasible: manual.feasible,
+        legs,
+      }),
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -344,6 +373,16 @@ export function Simulator({ initialAmount }: { initialAmount: number }) {
                 </tbody>
               </table>
             </div>
+
+            {caseId && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {saving ? "שומר..." : "שמור תמהיל לתיק"}
+              </button>
+            )}
           </div>
         ) : (
           <p className="mt-5 text-sm text-amber-600">

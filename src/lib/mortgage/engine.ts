@@ -258,4 +258,48 @@ export function defaultRates(): RateMap {
   ) as RateMap;
 }
 
+// A persisted mix leg (stored as JSON on a Scenario).
+export interface StoredLeg {
+  type: TrackType;
+  pct: number;
+  rate: number;
+}
+
+export interface Milestone {
+  year: number;
+  payment: number; // blended monthly payment that year
+  balance: number; // remaining balance at year-end
+}
+
+/** Year-by-year blended milestones across all legs, for the report. */
+export function blendedMilestones(
+  legs: StoredLeg[],
+  amount: number,
+  termMonths: number,
+  cpi: number,
+): Milestone[] {
+  const perLeg = legs.map((leg) =>
+    schedule(
+      (amount * leg.pct) / 100,
+      leg.rate,
+      termMonths,
+      cpi,
+      TRACK_BY_TYPE[leg.type].linked,
+    ),
+  );
+  const termYears = Math.ceil(termMonths / 12);
+  const rows: Milestone[] = [];
+  for (let y = 1; y <= termYears; y++) {
+    const m = Math.min(y * 12, termMonths);
+    let payment = 0;
+    let balance = 0;
+    for (const sch of perLeg) {
+      payment += sch[m - 1].payment;
+      balance += sch[m - 1].balance;
+    }
+    rows.push({ year: y, payment, balance });
+  }
+  return rows;
+}
+
 export { TRACKS, TRACK_BY_TYPE };
