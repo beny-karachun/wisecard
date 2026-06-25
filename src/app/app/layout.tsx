@@ -7,6 +7,7 @@ const nav = [
   { href: "/app/contacts", label: "לקוחות ולידים" },
   { href: "/app/cases", label: "תיקי משכנתא" },
   { href: "/app/simulator", label: "סימולטור" },
+  { href: "/app/data", label: "מרכז נתונים" },
   { href: "/app/tasks", label: "משימות" },
 ];
 

@@ -4,10 +4,10 @@ A Hebrew/RTL SaaS for Israeli mortgage advisors — CRM, mortgage simulator, AI
 intake, document handling, and dashboards. See [PLAN.md](PLAN.md) for the full
 scope, data sources, and phased roadmap.
 
-> **Status:** Phase 2 complete — mortgage simulator + mix-optimizer, scenarios
-> saved to cases, and branded print/PDF reports — on top of the Phase 1 CRM
-> (contacts, cases, tasks, activity) and Phase 0 foundation
-> (Next.js + Prisma + Auth.js + RTL shell).
+> **Status:** Phase 3 — financial-data center live. Bank of Israel (policy rate
+> → prime) and CBS (CPI) feed the simulator with real, auto-updating numbers.
+> Built on Phase 2 (simulator + mix-optimizer, scenarios, reports), Phase 1 CRM
+> (contacts, cases, tasks, activity), and the Phase 0 foundation.
 
 ## Stack
 

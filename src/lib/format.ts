@@ -32,3 +32,12 @@ export function formatCurrency(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   return currencyFmt.format(amount);
 }
+
+const monthFmt = new Intl.DateTimeFormat("he-IL", {
+  month: "long",
+  year: "numeric",
+});
+
+export function formatMonth(date: Date | string): string {
+  return monthFmt.format(new Date(date));
+}

@@ -243,3 +243,19 @@ model Scenario {
   @@index([organizationId])
   @@index([caseId])
 }
+
+// ---------------------------------------------------------------------------
+// Financial-data center (global reference data — not tenant-scoped)
+// Series: BOI_RATE, CPI_INDEX, CPI_YOY. Synced from BOI Edge API + CBS.
+// ---------------------------------------------------------------------------
+
+model MarketReading {
+  id        String   @id @default(cuid())
+  series    String
+  date      DateTime
+  value     Float
+  createdAt DateTime @default(now())
+
+  @@unique([series, date])
+  @@index([series])
+}

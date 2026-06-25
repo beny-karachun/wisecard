@@ -147,15 +147,19 @@ function NumField({
 export function Simulator({
   initialAmount,
   caseId,
+  initialRates,
+  initialCpi,
 }: {
   initialAmount: number;
   caseId?: string;
+  initialRates?: RateMap;
+  initialCpi?: number;
 }) {
   const [amount, setAmount] = useState<number | "">(initialAmount);
   const [years, setYears] = useState<number | "">(25);
   const [income, setIncome] = useState<number | "">("");
-  const [cpi, setCpi] = useState<number | "">(DEFAULT_CPI);
-  const [rates, setRates] = useState<RateMap>(defaultRates());
+  const [cpi, setCpi] = useState<number | "">(initialCpi ?? DEFAULT_CPI);
+  const [rates, setRates] = useState<RateMap>(initialRates ?? defaultRates());
   const [alloc, setAlloc] = useState<Record<TrackType, number>>({
     ...emptyAlloc(),
     PRIME: 30,

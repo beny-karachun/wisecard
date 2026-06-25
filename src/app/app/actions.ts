@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import { syncMarketData } from "@/lib/market/sync";
 
 // Empty form fields ("") become undefined.
 function str(v: FormDataEntryValue | null): string | undefined {
@@ -331,4 +332,15 @@ export async function deleteScenario(id: string) {
   });
   await prisma.scenario.deleteMany({ where: { id, organizationId } });
   if (scenario?.caseId) revalidatePath(`/app/cases/${scenario.caseId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Market data
+// ---------------------------------------------------------------------------
+
+export async function refreshMarketData() {
+  await requireUser();
+  await syncMarketData();
+  revalidatePath("/app/data");
+  revalidatePath("/app/simulator");
 }
