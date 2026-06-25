@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WiseCard
 
-## Getting Started
+A Hebrew/RTL SaaS for Israeli mortgage advisors — CRM, mortgage simulator, AI
+intake, document handling, and dashboards. See [PLAN.md](PLAN.md) for the full
+scope, data sources, and phased roadmap.
 
-First, run the development server:
+> **Status:** Phase 2 — mortgage simulator + mix-optimizer live, on top of the
+> Phase 1 CRM (contacts, cases, tasks, activity) and Phase 0 foundation
+> (Next.js + Prisma + Auth.js + RTL shell).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+- **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- **PostgreSQL** + **Prisma 6**
+- **Auth.js (NextAuth v5)** — credentials + JWT sessions (OAuth-ready)
+- **Tailwind CSS v4** — RTL, Hebrew (Heebo font)
+
+## Getting started
+
+1. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment** — copy the example and fill in values:
+
+   ```bash
+   cp .env.example .env
+   npx auth secret   # generates AUTH_SECRET
+   ```
+
+   Set `DATABASE_URL` to a Postgres instance (free: [Neon](https://neon.tech) or
+   [Supabase](https://supabase.com), or local Postgres).
+
+3. **Create the schema + seed a demo user**
+
+   ```bash
+   npm run db:push     # create tables from prisma/schema.prisma
+   npm run db:seed     # demo org + user
+   ```
+
+   Demo login → `advisor@demo.local` / `password123`
+
+4. **Run the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000). Sign in at `/sign-in`;
+   the app lives under `/app` (protected by middleware).
+
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run db:push` | Push schema to the database |
+| `npm run db:migrate` | Create/apply a migration |
+| `npm run db:seed` | Seed demo data |
+| `npm run db:studio` | Open Prisma Studio |
+
+## Project layout
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+prisma/schema.prisma     Multi-tenant data model (Org → Users, Contacts, Cases)
+prisma/seed.ts           Demo org + user
+src/auth.config.ts       Edge-safe auth config (used by middleware)
+src/auth.ts              Full auth (Credentials + Prisma adapter)
+src/proxy.ts             Protects /app/* (Next 16 proxy convention)
+src/lib/prisma.ts        Prisma client singleton
+src/app/                 Routes — landing (/), /sign-in, /app (dashboard)
+```
