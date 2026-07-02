@@ -7,10 +7,19 @@ import {
   optimize,
   TRACKS,
   type AllocMap,
+  type MixConstraints,
   type MixResult,
   type RateMap,
+  type TermMap,
 } from "@/lib/mortgage/engine";
-import { DEFAULT_CPI, MAX_TERM_MONTHS, type TrackType } from "@/lib/mortgage/tracks";
+import {
+  DEFAULT_CPI,
+  LTV_CAPS,
+  MAX_TERM_MONTHS,
+  type LtvBasis,
+  type TrackType,
+} from "@/lib/mortgage/tracks";
+import { ltvBasisLabel } from "@/lib/labels";
 import { formatCurrency } from "@/lib/format";
 import { saveScenario } from "@/app/app/actions";
 
@@ -20,16 +29,22 @@ const TRACK_COLORS: Record<TrackType, string> = {
   FIXED_LINKED: "bg-teal-500",
   VARIABLE_UNLINKED: "bg-amber-500",
   VARIABLE_LINKED: "bg-rose-500",
+  MAKAM: "bg-sky-500",
+  ELIGIBILITY: "bg-purple-500",
 };
 
 function emptyAlloc(): Record<TrackType, number> {
-  return {
-    PRIME: 0,
-    FIXED_UNLINKED: 0,
-    FIXED_LINKED: 0,
-    VARIABLE_UNLINKED: 0,
-    VARIABLE_LINKED: 0,
-  };
+  return Object.fromEntries(TRACKS.map((t) => [t.type, 0])) as Record<
+    TrackType,
+    number
+  >;
+}
+
+function emptyTerms(): Record<TrackType, number | ""> {
+  return Object.fromEntries(TRACKS.map((t) => [t.type, ""])) as Record<
+    TrackType,
+    number | ""
+  >;
 }
 
 function allocFromResult(r: MixResult): Record<TrackType, number> {
@@ -90,6 +105,12 @@ function MixCard({
         <Stat label="החזר חודשי" value={formatCurrency(result.firstPayment)} />
         <Stat label="עלות כוללת" value={formatCurrency(result.totalPaid)} />
       </div>
+      <p className="mt-2 text-xs text-slate-500">
+        בתרחיש לחץ (שנה 5):{" "}
+        <span className="font-semibold text-slate-700">
+          {formatCurrency(result.stressedPayment)}
+        </span>
+      </p>
       <div className="mt-3">
         <CompositionBar legs={result.legs} />
         <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
@@ -103,9 +124,11 @@ function MixCard({
       </div>
       <button
         onClick={onUse}
-        className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+        className="mt-auto pt-4"
       >
-        השתמש בתמהיל זה
+        <span className="block rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100">
+          השתמש בתמהיל זה
+        </span>
       </button>
     </div>
   );
@@ -147,17 +170,36 @@ function NumField({
 export function Simulator({
   initialAmount,
   caseId,
+  caseName,
+  initialIncome,
+  initialObligations,
+  initialPropertyValue,
+  initialLtvBasis,
   initialRates,
   initialCpi,
 }: {
   initialAmount: number;
   caseId?: string;
+  caseName?: string;
+  initialIncome?: number;
+  initialObligations?: number;
+  initialPropertyValue?: number;
+  initialLtvBasis?: LtvBasis;
   initialRates?: RateMap;
   initialCpi?: number;
 }) {
   const [amount, setAmount] = useState<number | "">(initialAmount);
   const [years, setYears] = useState<number | "">(25);
-  const [income, setIncome] = useState<number | "">("");
+  const [income, setIncome] = useState<number | "">(initialIncome ?? "");
+  const [obligations, setObligations] = useState<number | "">(
+    initialObligations ?? "",
+  );
+  const [propertyValue, setPropertyValue] = useState<number | "">(
+    initialPropertyValue ?? "",
+  );
+  const [ltvBasis, setLtvBasis] = useState<LtvBasis>(
+    initialLtvBasis ?? "FIRST_HOME",
+  );
   const [cpi, setCpi] = useState<number | "">(initialCpi ?? DEFAULT_CPI);
   const [rates, setRates] = useState<RateMap>(initialRates ?? defaultRates());
   const [alloc, setAlloc] = useState<Record<TrackType, number>>({
@@ -166,6 +208,10 @@ export function Simulator({
     FIXED_UNLINKED: 35,
     FIXED_LINKED: 35,
   });
+  // Per-track term (years); "" = the global term.
+  const [termYears, setTermYears] = useState<Record<TrackType, number | "">>(
+    emptyTerms(),
+  );
 
   const amountN = typeof amount === "number" ? amount : 0;
   const termMonths = Math.min(
@@ -173,7 +219,31 @@ export function Simulator({
     (typeof years === "number" ? years : 0) * 12,
   );
   const cpiN = typeof cpi === "number" ? cpi : 0;
-  const incomeN = typeof income === "number" ? income : undefined;
+
+  const terms = useMemo<TermMap>(() => {
+    const t: TermMap = {};
+    for (const [type, y] of Object.entries(termYears)) {
+      if (typeof y === "number" && y > 0) {
+        t[type as TrackType] = Math.min(MAX_TERM_MONTHS, y * 12);
+      }
+    }
+    return t;
+  }, [termYears]);
+
+  const constraints = useMemo<MixConstraints>(
+    () => ({
+      monthlyIncome: typeof income === "number" ? income : undefined,
+      monthlyObligations:
+        typeof obligations === "number" ? obligations : undefined,
+      propertyValue:
+        typeof propertyValue === "number" && propertyValue > 0
+          ? propertyValue
+          : undefined,
+      ltvBasis,
+      terms,
+    }),
+    [income, obligations, propertyValue, ltvBasis, terms],
+  );
 
   const opt = useMemo(() => {
     if (amountN <= 0 || termMonths <= 0) return null;
@@ -182,19 +252,26 @@ export function Simulator({
       termMonths,
       rates,
       cpi: cpiN,
-      monthlyIncome: incomeN,
+      constraints,
     });
-  }, [amountN, termMonths, rates, cpiN, incomeN]);
+  }, [amountN, termMonths, rates, cpiN, constraints]);
 
   const allocSum = Object.values(alloc).reduce((s, v) => s + v, 0);
   const manual = useMemo<MixResult | null>(() => {
     if (amountN <= 0 || termMonths <= 0 || Math.round(allocSum) !== 100) {
       return null;
     }
-    return evaluateMix(alloc as AllocMap, amountN, termMonths, rates, cpiN, {
-      monthlyIncome: incomeN,
-    });
-  }, [alloc, allocSum, amountN, termMonths, rates, cpiN, incomeN]);
+    return evaluateMix(
+      alloc as AllocMap,
+      amountN,
+      termMonths,
+      rates,
+      cpiN,
+      constraints,
+    );
+  }, [alloc, allocSum, amountN, termMonths, rates, cpiN, constraints]);
+
+  const ltvCapPct = Math.round(LTV_CAPS[ltvBasis] * 100);
 
   const [saving, startSaving] = useTransition();
   function handleSave() {
@@ -203,12 +280,14 @@ export function Simulator({
       type: l.type,
       pct: l.pct,
       rate: l.rate,
+      termMonths: l.termMonths,
     }));
+    const maxTerm = Math.max(...legs.map((l) => l.termMonths));
     startSaving(() =>
       saveScenario({
         caseId,
         amount: amountN,
-        termMonths,
+        termMonths: maxTerm,
         cpi: cpiN,
         firstPayment: manual.firstPayment,
         totalPaid: manual.totalPaid,
@@ -223,6 +302,14 @@ export function Simulator({
       <div>
         <h1 className="text-2xl font-bold text-slate-900">סימולטור משכנתאות</h1>
         <p className="mt-1 text-sm text-slate-500">
+          {caseName && (
+            <>
+              <span className="font-semibold text-indigo-600">
+                תיק: {caseName}
+              </span>
+              {" · "}
+            </>
+          )}
           האלגוריתם בוחן את כל התמהילים החוקיים ({opt?.evaluated ?? 0} שילובים)
           לפי כללי בנק ישראל ובוחר את המומלצים.
         </p>
@@ -234,12 +321,50 @@ export function Simulator({
           <NumField label="סכום הלוואה" value={amount} onChange={setAmount} suffix="₪" />
           <NumField label="תקופה" value={years} onChange={setYears} suffix="שנים" />
           <NumField
-            label="הכנסה חודשית (לבדיקת החזר)"
+            label="הכנסה חודשית נטו"
             value={income}
             onChange={setIncome}
             suffix="₪"
           />
+          <NumField
+            label="התחייבויות חודשיות"
+            value={obligations}
+            onChange={setObligations}
+            suffix="₪"
+          />
+          <NumField
+            label="שווי הנכס"
+            value={propertyValue}
+            onChange={setPropertyValue}
+            suffix="₪"
+          />
+          <label className="block">
+            <span className="block text-sm font-medium text-slate-700">
+              פרופיל מימון
+            </span>
+            <select
+              value={ltvBasis}
+              onChange={(e) => setLtvBasis(e.target.value as LtvBasis)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            >
+              {Object.entries(ltvBasisLabel).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+
+        {manual?.ltvPct != null && (
+          <p
+            className={`mt-3 text-sm font-medium ${
+              manual.ltvPct <= ltvCapPct ? "text-green-700" : "text-red-700"
+            }`}
+          >
+            אחוז מימון: {Math.round(manual.ltvPct)}% (תקרה {ltvCapPct}%)
+          </p>
+        )}
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
@@ -272,7 +397,7 @@ export function Simulator({
       {/* Recommendations */}
       <div>
         <h2 className="text-lg font-semibold text-slate-900">תמהילים מומלצים</h2>
-        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MixCard
             title="החזר חודשי מינימלי"
             subtitle="payment"
@@ -284,6 +409,12 @@ export function Simulator({
             subtitle="cost"
             result={opt?.byCost ?? null}
             onUse={() => opt?.byCost && setAlloc(allocFromResult(opt.byCost))}
+          />
+          <MixCard
+            title="סיכון מינימלי"
+            subtitle="risk"
+            result={opt?.byRisk ?? null}
+            onUse={() => opt?.byRisk && setAlloc(allocFromResult(opt.byRisk))}
           />
           <MixCard
             title="מאוזן"
@@ -309,22 +440,39 @@ export function Simulator({
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {TRACKS.map((t) => (
-            <NumField
-              key={t.type}
-              label={t.label}
-              value={alloc[t.type]}
-              suffix="%"
-              onChange={(v) =>
-                setAlloc((a) => ({ ...a, [t.type]: v === "" ? 0 : v }))
-              }
-            />
+            <div key={t.type} className="flex items-end gap-2">
+              <div className="flex-1">
+                <NumField
+                  label={t.label}
+                  value={alloc[t.type]}
+                  suffix="%"
+                  onChange={(v) =>
+                    setAlloc((a) => ({ ...a, [t.type]: v === "" ? 0 : v }))
+                  }
+                />
+              </div>
+              <div className="w-24">
+                <NumField
+                  label="תקופה"
+                  value={termYears[t.type]}
+                  suffix="שנ׳"
+                  onChange={(v) =>
+                    setTermYears((m) => ({ ...m, [t.type]: v }))
+                  }
+                />
+              </div>
+            </div>
           ))}
         </div>
 
         {manual ? (
           <div className="mt-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
               <Stat label="החזר חודשי" value={formatCurrency(manual.firstPayment)} />
+              <Stat
+                label="תרחיש לחץ (שנה 5)"
+                value={formatCurrency(manual.stressedPayment)}
+              />
               <Stat label="עלות כוללת" value={formatCurrency(manual.totalPaid)} />
               <Stat label="עלות מימון" value={formatCurrency(manual.financingCost)} />
               <div>
@@ -355,6 +503,7 @@ export function Simulator({
                     <th className="px-3 py-2 font-medium">חלק</th>
                     <th className="px-3 py-2 font-medium">סכום</th>
                     <th className="px-3 py-2 font-medium">ריבית</th>
+                    <th className="px-3 py-2 font-medium">תקופה</th>
                     <th className="px-3 py-2 font-medium">החזר חודשי</th>
                   </tr>
                 </thead>
@@ -368,6 +517,9 @@ export function Simulator({
                       </td>
                       <td className="px-3 py-2 text-slate-600" dir="ltr">
                         {l.rate}%
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {Math.round(l.termMonths / 12)} שנים
                       </td>
                       <td className="px-3 py-2 text-slate-600">
                         {formatCurrency(l.firstPayment)}
@@ -396,8 +548,9 @@ export function Simulator({
       </div>
 
       <p className="text-xs text-slate-400">
-        כללי בנק ישראל: לפחות ⅓ במסלול קבוע, עד ⅔ בפריים, החזר עד 50% מההכנסה.
-        החישוב מניח ריביות ומדד קבועים לאורך התקופה (אומדן; נתוני אמת ב-Phase 3).
+        כללי בנק ישראל: לפחות ⅓ במסלול קבוע, עד ⅔ בפריים, החזר + התחייבויות עד
+        50% מההכנסה, מימון עד {ltvCapPct}% לפי הפרופיל. תרחיש לחץ: ריבית משתנה
+        +2%, מדד +1.5%, החזר בשנה 5 (אומדן — ללא שערוך מלא במועדי עדכון).
       </p>
     </div>
   );

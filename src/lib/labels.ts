@@ -3,6 +3,9 @@ import type {
   CasePurpose,
   CaseStatus,
   ContactType,
+  EmploymentType,
+  LtvBasis,
+  PropertyType,
   Role,
 } from "@prisma/client";
 
@@ -58,4 +61,26 @@ export const roleLabel: Record<Role, string> = {
   PRINCIPAL: "מנהל",
   ADVISOR: "יועץ",
   ASSISTANT: "מזכירות",
+};
+
+export const employmentLabel: Record<EmploymentType, string> = {
+  SALARIED: "שכיר/ה",
+  SELF_EMPLOYED: "עצמאי/ת",
+  BUSINESS_OWNER: "בעל/ת שליטה",
+  PENSIONER: "פנסיונר/ית",
+  OTHER: "אחר",
+};
+
+export const ltvBasisLabel: Record<LtvBasis, string> = {
+  FIRST_HOME: "דירה ראשונה (עד 75%)",
+  UPGRADER: "משפרי דיור (עד 70%)",
+  INVESTMENT: "השקעה (עד 50%)",
+};
+
+export const propertyTypeLabel: Record<PropertyType, string> = {
+  APARTMENT: "דירה",
+  HOUSE: "בית פרטי",
+  PENTHOUSE: "פנטהאוז",
+  LAND: "קרקע/בנייה",
+  OTHER: "אחר",
 };

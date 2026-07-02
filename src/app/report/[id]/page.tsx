@@ -108,6 +108,7 @@ export default async function ReportPage({
             <th className="font-medium">חלק</th>
             <th className="font-medium">סכום</th>
             <th className="font-medium">ריבית</th>
+            <th className="font-medium">תקופה</th>
           </tr>
         </thead>
         <tbody>
@@ -117,6 +118,9 @@ export default async function ReportPage({
               <td>{l.pct}%</td>
               <td>{formatCurrency((scenario.amount * l.pct) / 100)}</td>
               <td dir="ltr">{l.rate}%</td>
+              <td>
+                {Math.round((l.termMonths ?? scenario.termMonths) / 12)} שנים
+              </td>
             </tr>
           ))}
         </tbody>

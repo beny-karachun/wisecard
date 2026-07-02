@@ -6,6 +6,7 @@ import { StatusSelect } from "@/components/status-select";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { AddActivityForm } from "@/components/add-activity-form";
 import { AddTaskForm } from "@/components/add-task-form";
+import { CaseFinances } from "@/components/case-finances";
 import { casePurposeLabel } from "@/lib/labels";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { deleteCase, deleteScenario, toggleTask } from "@/app/app/actions";
@@ -30,6 +31,8 @@ export default async function CaseDetail({
         include: { author: { select: { name: true, email: true } } },
       },
       scenarios: { orderBy: { createdAt: "desc" } },
+      borrowers: { orderBy: { createdAt: "asc" } },
+      property: true,
     },
   });
   if (!kase) notFound();
@@ -71,6 +74,13 @@ export default async function CaseDetail({
           </Link>
         </div>
       </div>
+
+      <CaseFinances
+        caseId={kase.id}
+        loanAmount={kase.amount}
+        borrowers={kase.borrowers}
+        property={kase.property}
+      />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <section>

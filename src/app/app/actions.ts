@@ -158,6 +158,116 @@ export async function deleteCase(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Borrowers & property (the case's household financials)
+// ---------------------------------------------------------------------------
+
+const borrowerSchema = z.object({
+  caseId: z.string().min(1),
+  name: z.string().trim().min(1),
+  monthlyIncome: z.coerce.number().int().nonnegative().default(0),
+  monthlyObligations: z.coerce.number().int().nonnegative().default(0),
+  employment: z.enum([
+    "SALARIED",
+    "SELF_EMPLOYED",
+    "BUSINESS_OWNER",
+    "PENSIONER",
+    "OTHER",
+  ]),
+});
+
+async function ownedCase(caseId: string, organizationId: string) {
+  return prisma.case.findFirst({
+    where: { id: caseId, organizationId },
+    select: { id: true },
+  });
+}
+
+export async function createBorrower(formData: FormData) {
+  const { organizationId } = await requireUser();
+  const data = borrowerSchema.parse({
+    caseId: str(formData.get("caseId")),
+    name: str(formData.get("name")),
+    monthlyIncome: str(formData.get("monthlyIncome")) ?? 0,
+    monthlyObligations: str(formData.get("monthlyObligations")) ?? 0,
+    employment: str(formData.get("employment")) ?? "SALARIED",
+  });
+
+  if (!(await ownedCase(data.caseId, organizationId))) return;
+
+  await prisma.borrower.create({ data });
+  revalidatePath(`/app/cases/${data.caseId}`);
+}
+
+export async function updateBorrower(formData: FormData) {
+  const { organizationId } = await requireUser();
+  const id = str(formData.get("id"));
+  if (!id) return;
+  const data = borrowerSchema.parse({
+    caseId: str(formData.get("caseId")),
+    name: str(formData.get("name")),
+    monthlyIncome: str(formData.get("monthlyIncome")) ?? 0,
+    monthlyObligations: str(formData.get("monthlyObligations")) ?? 0,
+    employment: str(formData.get("employment")) ?? "SALARIED",
+  });
+
+  await prisma.borrower.updateMany({
+    where: { id, case: { organizationId } },
+    data: {
+      name: data.name,
+      monthlyIncome: data.monthlyIncome,
+      monthlyObligations: data.monthlyObligations,
+      employment: data.employment,
+    },
+  });
+  revalidatePath(`/app/cases/${data.caseId}`);
+}
+
+export async function deleteBorrower(id: string) {
+  const { organizationId } = await requireUser();
+  const borrower = await prisma.borrower.findFirst({
+    where: { id, case: { organizationId } },
+    select: { caseId: true },
+  });
+  if (!borrower) return;
+  await prisma.borrower.delete({ where: { id } });
+  revalidatePath(`/app/cases/${borrower.caseId}`);
+}
+
+const propertySchema = z.object({
+  caseId: z.string().min(1),
+  value: z.coerce.number().int().positive(),
+  city: z.string().trim().optional(),
+  type: z.enum(["APARTMENT", "HOUSE", "PENTHOUSE", "LAND", "OTHER"]),
+  ltvBasis: z.enum(["FIRST_HOME", "UPGRADER", "INVESTMENT"]),
+});
+
+export async function upsertProperty(formData: FormData) {
+  const { organizationId } = await requireUser();
+  const data = propertySchema.parse({
+    caseId: str(formData.get("caseId")),
+    value: str(formData.get("value")),
+    city: str(formData.get("city")),
+    type: str(formData.get("type")) ?? "APARTMENT",
+    ltvBasis: str(formData.get("ltvBasis")) ?? "FIRST_HOME",
+  });
+
+  if (!(await ownedCase(data.caseId, organizationId))) return;
+
+  const fields = {
+    value: data.value,
+    city: data.city ?? null,
+    type: data.type,
+    ltvBasis: data.ltvBasis,
+  };
+  await prisma.property.upsert({
+    where: { caseId: data.caseId },
+    update: fields,
+    create: { caseId: data.caseId, ...fields },
+  });
+  revalidatePath(`/app/cases/${data.caseId}`);
+}
+
+// ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
 
@@ -287,9 +397,12 @@ const scenarioSchema = z.object({
           "FIXED_LINKED",
           "VARIABLE_UNLINKED",
           "VARIABLE_LINKED",
+          "MAKAM",
+          "ELIGIBILITY",
         ]),
         pct: z.number(),
         rate: z.number(),
+        termMonths: z.number().int().positive().optional(),
       }),
     )
     .min(1),

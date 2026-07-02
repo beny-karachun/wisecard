@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/session";
 import {
   getCpiHistory,
   getMarketSnapshot,
+  getMortgageMarket,
   PRIME_SPREAD,
 } from "@/lib/market/sync";
 import { RefreshButton } from "@/components/refresh-button";
@@ -9,10 +10,18 @@ import { formatDate, formatDateTime, formatMonth } from "@/lib/format";
 
 export default async function DataCenterPage() {
   await requireUser();
-  const [snap, cpiHist] = await Promise.all([
+  const [snap, cpiHist, mtg] = await Promise.all([
     getMarketSnapshot(),
     getCpiHistory(12),
+    getMortgageMarket(),
   ]);
+
+  const anchorRows = [
+    { label: "קבועה לא צמודה (קל״צ)", rate: mtg.fixedUnlinked },
+    { label: "קבועה צמודה", rate: mtg.fixedLinked },
+    { label: "משתנה לא צמודה", rate: mtg.variableUnlinked },
+    { label: "משתנה צמודה", rate: mtg.variableLinked },
+  ];
 
   const cards = [
     { label: "ריבית בנק ישראל", value: snap.boiRate, date: snap.boiDate, suffix: "%" },
@@ -66,6 +75,46 @@ export default async function DataCenterPage() {
               </div>
             ))}
           </div>
+
+          <h2 className="mt-10 text-lg font-semibold text-slate-900">
+            ריביות משכנתא ממוצעות — משכנתאות חדשות (בנק ישראל)
+          </h2>
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-right text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">מסלול</th>
+                  <th className="px-4 py-2 font-medium">ריבית ממוצעת</th>
+                  <th className="px-4 py-2 font-medium">עוגן + מרווח</th>
+                  <th className="px-4 py-2 font-medium">חודש</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anchorRows.map((r) => (
+                  <tr
+                    key={r.label}
+                    className="border-b border-slate-100 last:border-0"
+                  >
+                    <td className="px-4 py-2 text-slate-700">{r.label}</td>
+                    <td className="px-4 py-2 font-semibold text-slate-900" dir="ltr">
+                      {r.rate ? `${r.rate.value}%` : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-slate-600" dir="ltr">
+                      {r.rate?.anchor != null
+                        ? `${r.rate.anchor}% + ${r.rate.margin}%`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-slate-500">
+                      {r.rate ? formatMonth(r.rate.date) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            הריביות הממוצעות והעוגנים מזינים את ברירות המחדל בסימולטור.
+          </p>
 
           <h2 className="mt-10 text-lg font-semibold text-slate-900">
             מדד המחירים לצרכן — 12 חודשים אחרונים

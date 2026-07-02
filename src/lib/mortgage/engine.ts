@@ -3,15 +3,21 @@
 
 import {
   FIXED_MIN_FRACTION,
+  LTV_CAPS,
   PRIME_MAX_FRACTION,
   PTI_MAX,
+  STRESS_CPI_BUMP,
+  STRESS_MONTH,
+  STRESS_RATE_BUMP,
   TRACK_BY_TYPE,
   TRACKS,
+  type LtvBasis,
   type TrackType,
 } from "./tracks";
 
 export type RateMap = Record<TrackType, number>; // annual % per track
 export type AllocMap = Partial<Record<TrackType, number>>; // % of total per track
+export type TermMap = Partial<Record<TrackType, number>>; // months per track
 
 /** Spitzer (annuity) monthly payment. */
 export function monthlyPayment(
@@ -84,12 +90,34 @@ export function schedule(
   return rows;
 }
 
+/**
+ * A leg's estimated payment at `atMonth` under the BOI-style stress scenario:
+ * variable rates +2pp, CPI +1.5pp. Approximation — the shocked rate is applied
+ * from month 1 rather than re-amortized at actual reset dates.
+ */
+function stressedLegPayment(
+  amount: number,
+  rate: number,
+  termMonths: number,
+  cpi: number,
+  type: TrackType,
+  atMonth = STRESS_MONTH,
+): number {
+  const def = TRACK_BY_TYPE[type];
+  const shockedRate = rate + (def.variable ? STRESS_RATE_BUMP : 0);
+  const M = monthlyPayment(amount, shockedRate, termMonths);
+  const c = def.linked ? (cpi + STRESS_CPI_BUMP) / 100 / 12 : 0;
+  const m = Math.min(atMonth, termMonths);
+  return M * Math.pow(1 + c, m - 1);
+}
+
 export interface MixLeg {
   type: TrackType;
   label: string;
   pct: number;
   amount: number;
   rate: number;
+  termMonths: number;
   firstPayment: number;
   totalPaid: number;
 }
@@ -100,10 +128,20 @@ export interface MixResult {
   firstPayment: number;
   totalPaid: number;
   financingCost: number;
+  stressedPayment: number; // est. monthly payment at year 5 under stress
   primePct: number;
   fixedPct: number;
+  ltvPct: number | null; // loan / property value, when a value is known
   feasible: boolean;
   violations: string[];
+}
+
+export interface MixConstraints {
+  monthlyIncome?: number;
+  monthlyObligations?: number;
+  propertyValue?: number;
+  ltvBasis?: LtvBasis;
+  terms?: TermMap; // per-track term override (months)
 }
 
 const EPS = 1e-6;
@@ -114,11 +152,12 @@ export function evaluateMix(
   termMonths: number,
   rates: RateMap,
   cpi: number,
-  opts: { monthlyIncome?: number } = {},
+  opts: MixConstraints = {},
 ): MixResult {
   const legs: MixLeg[] = [];
   let firstPayment = 0;
   let totalPaid = 0;
+  let stressedPayment = 0;
   let primePct = 0;
   let fixedPct = 0;
 
@@ -127,18 +166,21 @@ export function evaluateMix(
     if (pct <= 0) continue;
     const legAmount = (amount * pct) / 100;
     const rate = rates[def.type];
-    const totals = trackTotals(legAmount, rate, termMonths, cpi, def.linked);
+    const legTerm = opts.terms?.[def.type] ?? termMonths;
+    const totals = trackTotals(legAmount, rate, legTerm, cpi, def.linked);
     legs.push({
       type: def.type,
       label: def.label,
       pct,
       amount: legAmount,
       rate,
+      termMonths: legTerm,
       firstPayment: totals.firstPayment,
       totalPaid: totals.totalPaid,
     });
     firstPayment += totals.firstPayment;
     totalPaid += totals.totalPaid;
+    stressedPayment += stressedLegPayment(legAmount, rate, legTerm, cpi, def.type);
     if (def.isPrime) primePct += pct;
     if (def.fixed) fixedPct += pct;
   }
@@ -150,9 +192,27 @@ export function evaluateMix(
   if (primePct > PRIME_MAX_FRACTION * 100 + EPS) {
     violations.push(`פריים גבוה מ-⅔ (${Math.round(primePct)}%)`);
   }
-  if (opts.monthlyIncome && opts.monthlyIncome > 0) {
-    if (firstPayment > opts.monthlyIncome * PTI_MAX + EPS) {
-      violations.push("החזר חודשי מעל 50% מההכנסה");
+
+  const income = opts.monthlyIncome ?? 0;
+  const obligations = opts.monthlyObligations ?? 0;
+  if (income > 0) {
+    if (firstPayment + obligations > income * PTI_MAX + EPS) {
+      violations.push(
+        obligations > 0
+          ? "החזר + התחייבויות מעל 50% מההכנסה"
+          : "החזר חודשי מעל 50% מההכנסה",
+      );
+    }
+  }
+
+  let ltvPct: number | null = null;
+  if (opts.propertyValue && opts.propertyValue > 0) {
+    ltvPct = (amount / opts.propertyValue) * 100;
+    const cap = LTV_CAPS[opts.ltvBasis ?? "FIRST_HOME"] * 100;
+    if (ltvPct > cap + EPS) {
+      violations.push(
+        `מימון ${Math.round(ltvPct)}% משווי הנכס — מעל תקרת ${Math.round(cap)}%`,
+      );
     }
   }
 
@@ -162,8 +222,10 @@ export function evaluateMix(
     firstPayment,
     totalPaid,
     financingCost: totalPaid - amount,
+    stressedPayment,
     primePct,
     fixedPct,
+    ltvPct,
     feasible: violations.length === 0,
     violations,
   };
@@ -174,15 +236,16 @@ export interface OptimizeInput {
   termMonths: number;
   rates: RateMap;
   cpi: number;
-  monthlyIncome?: number;
+  constraints?: MixConstraints;
   stepPct?: number; // allocation granularity, default 5
-  tracks?: TrackType[]; // tracks to consider, default all
+  tracks?: TrackType[]; // tracks to consider; default: mainstream tracks
 }
 
 export interface OptimizeResult {
   byCost: MixResult | null; // lowest total cost
   byPayment: MixResult | null; // lowest monthly payment
-  balanced: MixResult | null; // closest to both optima
+  byRisk: MixResult | null; // lowest stressed payment
+  balanced: MixResult | null; // closest to all optima
   evaluated: number;
   feasibleCount: number;
 }
@@ -202,11 +265,13 @@ function* compositions(units: number, slots: number): Generator<number[]> {
 
 export function optimize(input: OptimizeInput): OptimizeResult {
   const step = input.stepPct ?? 5;
-  const types = input.tracks ?? TRACKS.map((t) => t.type);
+  const types =
+    input.tracks ?? TRACKS.filter((t) => t.inOptimizer).map((t) => t.type);
   const units = Math.round(100 / step);
 
   let byCost: MixResult | null = null;
   let byPayment: MixResult | null = null;
+  let byRisk: MixResult | null = null;
   let evaluated = 0;
   let feasibleCount = 0;
   const feasible: MixResult[] = [];
@@ -222,7 +287,7 @@ export function optimize(input: OptimizeInput): OptimizeResult {
       input.termMonths,
       input.rates,
       input.cpi,
-      { monthlyIncome: input.monthlyIncome },
+      input.constraints,
     );
     evaluated++;
     if (!result.feasible) continue;
@@ -232,16 +297,23 @@ export function optimize(input: OptimizeInput): OptimizeResult {
     if (!byPayment || result.firstPayment < byPayment.firstPayment) {
       byPayment = result;
     }
+    if (!byRisk || result.stressedPayment < byRisk.stressedPayment) {
+      byRisk = result;
+    }
   }
 
-  // "Balanced": minimise normalised distance to both optima.
+  // "Balanced": minimise normalised distance to the three optima.
   let balanced: MixResult | null = null;
-  if (byCost && byPayment) {
+  if (byCost && byPayment && byRisk) {
     const bestCost = byCost.totalPaid;
     const bestPay = byPayment.firstPayment;
+    const bestStress = byRisk.stressedPayment;
     let bestScore = Infinity;
     for (const r of feasible) {
-      const score = r.totalPaid / bestCost + r.firstPayment / bestPay;
+      const score =
+        r.totalPaid / bestCost +
+        r.firstPayment / bestPay +
+        r.stressedPayment / bestStress;
       if (score < bestScore) {
         bestScore = score;
         balanced = r;
@@ -249,7 +321,7 @@ export function optimize(input: OptimizeInput): OptimizeResult {
     }
   }
 
-  return { byCost, byPayment, balanced, evaluated, feasibleCount };
+  return { byCost, byPayment, byRisk, balanced, evaluated, feasibleCount };
 }
 
 export function defaultRates(): RateMap {
@@ -258,11 +330,13 @@ export function defaultRates(): RateMap {
   ) as RateMap;
 }
 
-// A persisted mix leg (stored as JSON on a Scenario).
+// A persisted mix leg (stored as JSON on a Scenario). `termMonths` is absent
+// on legs saved before per-leg terms existed — fall back to the scenario term.
 export interface StoredLeg {
   type: TrackType;
   pct: number;
   rate: number;
+  termMonths?: number;
 }
 
 export interface Milestone {
@@ -278,24 +352,30 @@ export function blendedMilestones(
   termMonths: number,
   cpi: number,
 ): Milestone[] {
-  const perLeg = legs.map((leg) =>
-    schedule(
-      (amount * leg.pct) / 100,
-      leg.rate,
-      termMonths,
-      cpi,
-      TRACK_BY_TYPE[leg.type].linked,
-    ),
-  );
-  const termYears = Math.ceil(termMonths / 12);
+  const perLeg = legs.map((leg) => {
+    const legTerm = leg.termMonths ?? termMonths;
+    return {
+      term: legTerm,
+      rows: schedule(
+        (amount * leg.pct) / 100,
+        leg.rate,
+        legTerm,
+        cpi,
+        TRACK_BY_TYPE[leg.type].linked,
+      ),
+    };
+  });
+  const maxTerm = Math.max(termMonths, ...perLeg.map((l) => l.term));
+  const termYears = Math.ceil(maxTerm / 12);
   const rows: Milestone[] = [];
   for (let y = 1; y <= termYears; y++) {
-    const m = Math.min(y * 12, termMonths);
+    const m = Math.min(y * 12, maxTerm);
     let payment = 0;
     let balance = 0;
     for (const sch of perLeg) {
-      payment += sch[m - 1].payment;
-      balance += sch[m - 1].balance;
+      if (m > sch.term) continue; // leg fully repaid
+      payment += sch.rows[m - 1].payment;
+      balance += sch.rows[m - 1].balance;
     }
     rows.push({ year: y, payment, balance });
   }

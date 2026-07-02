@@ -162,6 +162,8 @@ model Case {
   purpose CasePurpose @default(PURCHASE)
   amount  Int? // requested loan amount in ILS
 
+  borrowers  Borrower[]
+  property   Property?
   tasks      Task[]
   activities Activity[]
   scenarios  Scenario[]
@@ -171,6 +173,60 @@ model Case {
 
   @@index([organizationId])
   @@index([contactId])
+}
+
+enum EmploymentType {
+  SALARIED
+  SELF_EMPLOYED
+  BUSINESS_OWNER
+  PENSIONER
+  OTHER
+}
+
+// A household member on the loan. Org scoping is via the parent case.
+model Borrower {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  name               String
+  monthlyIncome      Int            @default(0) // net ILS / month
+  monthlyObligations Int            @default(0) // existing loan payments ILS / month
+  employment         EmploymentType @default(SALARIED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+}
+
+// LTV basis per BOI directive: 75% first home / 70% upgrader / 50% investment.
+enum LtvBasis {
+  FIRST_HOME
+  UPGRADER
+  INVESTMENT
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  PENTHOUSE
+  LAND
+  OTHER
+}
+
+model Property {
+  id     String @id @default(cuid())
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  value    Int // appraised / purchase value in ILS
+  city     String?
+  type     PropertyType @default(APARTMENT)
+  ltvBasis LtvBasis     @default(FIRST_HOME)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Task {
