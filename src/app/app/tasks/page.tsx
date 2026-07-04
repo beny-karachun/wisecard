@@ -3,9 +3,9 @@ import type { CasePurpose } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { AddTaskForm } from "@/components/add-task-form";
+import { TaskToggle } from "@/components/task-toggle";
 import { casePurposeLabel } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
-import { toggleTask } from "@/app/app/actions";
 
 type TaskRow = {
   id: string;
@@ -24,48 +24,49 @@ function TaskList({ tasks }: { tasks: TaskRow[] }) {
   if (tasks.length === 0) {
     return <p className="mt-3 text-sm text-slate-400">אין משימות.</p>;
   }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   return (
     <ul className="mt-3 space-y-2">
-      {tasks.map((t) => (
-        <li
-          key={t.id}
-          className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
-        >
-          <form action={toggleTask.bind(null, t.id)}>
-            <button
-              type="submit"
-              aria-label="סמן כבוצע"
-              className={`flex h-5 w-5 items-center justify-center rounded border text-xs ${
-                t.done
-                  ? "border-green-600 bg-green-600 text-white"
-                  : "border-slate-300 bg-white"
-              }`}
-            >
-              {t.done ? "✓" : ""}
-            </button>
-          </form>
-          <div className="flex-1">
-            <span
-              className={`text-sm ${
-                t.done ? "text-slate-400 line-through" : "text-slate-800"
-              }`}
-            >
-              {t.title}
-            </span>
-            {t.case && (
-              <Link
-                href={`/app/cases/${t.case.id}`}
-                className="mt-0.5 block text-xs text-slate-400 hover:text-indigo-600 hover:underline"
+      {tasks.map((t) => {
+        const overdue = !t.done && t.dueAt != null && t.dueAt < today;
+        return (
+          <li
+            key={t.id}
+            className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
+          >
+            <TaskToggle id={t.id} done={t.done} />
+            <div className="flex-1">
+              <span
+                className={`text-sm ${
+                  t.done ? "text-slate-400 line-through" : "text-slate-800"
+                }`}
               >
-                {t.case.contact.name} · {t.case.title ?? casePurposeLabel[t.case.purpose]}
-              </Link>
+                {t.title}
+              </span>
+              {t.case && (
+                <Link
+                  href={`/app/cases/${t.case.id}`}
+                  className="mt-0.5 block text-xs text-slate-400 transition hover:text-blue-600 hover:underline"
+                >
+                  {t.case.contact.name} ·{" "}
+                  {t.case.title ?? casePurposeLabel[t.case.purpose]}
+                </Link>
+              )}
+            </div>
+            {t.dueAt && (
+              <span
+                className={`text-xs tabular-nums ${
+                  overdue ? "font-semibold text-red-600" : "text-slate-400"
+                }`}
+              >
+                {overdue && "באיחור · "}
+                {formatDate(t.dueAt)}
+              </span>
             )}
-          </div>
-          {t.dueAt && (
-            <span className="text-xs text-slate-400">{formatDate(t.dueAt)}</span>
-          )}
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }

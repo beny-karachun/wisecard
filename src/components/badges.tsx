@@ -18,7 +18,7 @@ export function CaseStatusBadge({ status }: { status: CaseStatus }) {
 export function ContactTypeBadge({ type }: { type: ContactType }) {
   const cls =
     type === "CLIENT"
-      ? "bg-indigo-100 text-indigo-700"
+      ? "bg-blue-100 text-blue-700"
       : "bg-slate-100 text-slate-600";
   return (
     <span

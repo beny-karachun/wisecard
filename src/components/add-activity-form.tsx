@@ -3,6 +3,8 @@
 import { useRef } from "react";
 import { activityChannelLabel } from "@/lib/labels";
 import { createActivity } from "@/app/app/actions";
+import { SubmitButton } from "@/components/submit-button";
+import { inputClass } from "@/components/field";
 
 export function AddActivityForm({
   contactId,
@@ -27,32 +29,33 @@ export function AddActivityForm({
       ) : null}
       {caseId ? <input type="hidden" name="caseId" value={caseId} /> : null}
 
-      <select
-        name="channel"
-        defaultValue="NOTE"
-        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm"
-      >
-        {Object.entries(activityChannelLabel).map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
+      <label>
+        <span className="sr-only">סוג הפעילות</span>
+        <select
+          name="channel"
+          defaultValue="NOTE"
+          className={`${inputClass} w-auto`}
+        >
+          {Object.entries(activityChannelLabel).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
 
-      <textarea
-        name="body"
-        required
-        rows={2}
-        placeholder="הערה, סיכום שיחה, עדכון..."
-        className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-      />
+      <label className="block">
+        <span className="sr-only">תוכן הפעילות</span>
+        <textarea
+          name="body"
+          required
+          rows={2}
+          placeholder="הערה, סיכום שיחה, עדכון..."
+          className={inputClass}
+        />
+      </label>
 
-      <button
-        type="submit"
-        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-      >
-        הוסף פעילות
-      </button>
+      <SubmitButton>הוסף פעילות</SubmitButton>
     </form>
   );
 }

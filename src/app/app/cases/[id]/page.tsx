@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRight, Calculator, FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { StatusSelect } from "@/components/status-select";
@@ -7,9 +8,11 @@ import { ActivityTimeline } from "@/components/activity-timeline";
 import { AddActivityForm } from "@/components/add-activity-form";
 import { AddTaskForm } from "@/components/add-task-form";
 import { CaseFinances } from "@/components/case-finances";
+import { SubmitButton } from "@/components/submit-button";
+import { TaskToggle } from "@/components/task-toggle";
 import { casePurposeLabel } from "@/lib/labels";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { deleteCase, deleteScenario, toggleTask } from "@/app/app/actions";
+import { deleteCase, deleteScenario } from "@/app/app/actions";
 
 export default async function CaseDetail({
   params,
@@ -43,9 +46,10 @@ export default async function CaseDetail({
         <div>
           <Link
             href="/app/cases"
-            className="text-sm text-slate-400 hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-slate-400 transition hover:text-slate-600"
           >
-            ← תיקי משכנתא
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            תיקי משכנתא
           </Link>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">
             {kase.title ?? casePurposeLabel[kase.purpose]}
@@ -54,7 +58,7 @@ export default async function CaseDetail({
             לקוח:{" "}
             <Link
               href={`/app/contacts/${kase.contact.id}`}
-              className="text-indigo-600 hover:underline"
+              className="text-blue-600 hover:underline"
             >
               {kase.contact.name}
             </Link>
@@ -68,9 +72,10 @@ export default async function CaseDetail({
           <StatusSelect caseId={kase.id} status={kase.status} />
           <Link
             href={`/app/simulator?amount=${kase.amount ?? ""}&caseId=${kase.id}`}
-            className="text-sm font-medium text-indigo-600 hover:underline"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
           >
-            פתח בסימולטור ←
+            <Calculator className="h-4 w-4" aria-hidden="true" />
+            פתח בסימולטור
           </Link>
         </div>
       </div>
@@ -97,19 +102,7 @@ export default async function CaseDetail({
                   key={t.id}
                   className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
                 >
-                  <form action={toggleTask.bind(null, t.id)}>
-                    <button
-                      type="submit"
-                      aria-label="סמן כבוצע"
-                      className={`flex h-5 w-5 items-center justify-center rounded border text-xs ${
-                        t.done
-                          ? "border-green-600 bg-green-600 text-white"
-                          : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {t.done ? "✓" : ""}
-                    </button>
-                  </form>
+                  <TaskToggle id={t.id} done={t.done} />
                   <span
                     className={`flex-1 text-sm ${
                       t.done ? "text-slate-400 line-through" : "text-slate-800"
@@ -146,7 +139,7 @@ export default async function CaseDetail({
           </h2>
           <Link
             href={`/app/simulator?amount=${kase.amount ?? ""}&caseId=${kase.id}`}
-            className="text-sm font-semibold text-indigo-600 hover:underline"
+            className="text-sm font-semibold text-blue-600 hover:underline"
           >
             + תמהיל חדש בסימולטור
           </Link>
@@ -182,17 +175,18 @@ export default async function CaseDetail({
                     href={`/report/${s.id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-medium text-indigo-600 hover:underline"
+                    className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
                   >
+                    <FileText className="h-4 w-4" aria-hidden="true" />
                     דוח
                   </a>
                   <form action={deleteScenario.bind(null, s.id)}>
-                    <button
-                      type="submit"
-                      className="text-sm text-red-600 hover:underline"
+                    <SubmitButton
+                      variant="danger"
+                      confirmMessage="למחוק את התמהיל השמור?"
                     >
                       מחק
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>
@@ -206,12 +200,12 @@ export default async function CaseDetail({
           פעולות
         </summary>
         <form action={deleteCase.bind(null, kase.id)} className="mt-3">
-          <button
-            type="submit"
-            className="text-sm font-medium text-red-600 hover:underline"
+          <SubmitButton
+            variant="danger"
+            confirmMessage="למחוק את התיק לצמיתות, כולל כל התמהילים והמשימות שלו?"
           >
             מחק תיק
-          </button>
+          </SubmitButton>
         </form>
       </details>
     </div>

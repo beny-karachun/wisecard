@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRight, FolderPlus, UserCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { CaseStatusBadge, ContactTypeBadge } from "@/components/badges";
-import { Field } from "@/components/field";
+import { Field, SelectField } from "@/components/field";
+import { SubmitButton } from "@/components/submit-button";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { AddActivityForm } from "@/components/add-activity-form";
 import { casePurposeLabel } from "@/lib/labels";
@@ -41,9 +43,10 @@ export default async function ContactDetail({
         <div>
           <Link
             href="/app/contacts"
-            className="text-sm text-slate-400 hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-slate-400 transition hover:text-slate-600"
           >
-            ← לקוחות ולידים
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            לקוחות ולידים
           </Link>
           <div className="mt-1 flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900">{contact.name}</h1>
@@ -55,12 +58,10 @@ export default async function ContactDetail({
         </div>
         {contact.type === "LEAD" && (
           <form action={convertContact.bind(null, contact.id)}>
-            <button
-              type="submit"
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
-            >
+            <SubmitButton variant="success">
+              <UserCheck className="h-4 w-4" aria-hidden="true" />
               המר ללקוח
-            </button>
+            </SubmitButton>
           </form>
         )}
       </div>
@@ -91,35 +92,27 @@ export default async function ContactDetail({
           </div>
 
           <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
-              + תיק חדש
+            <summary className="inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-blue-600 transition hover:text-blue-700">
+              <FolderPlus className="h-4 w-4" aria-hidden="true" />
+              תיק חדש
             </summary>
             <form action={createCase} className="mt-3 space-y-3">
               <input type="hidden" name="contactId" value={contact.id} />
               <Field label="כותרת (אופציונלי)" name="title" />
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  מטרה
-                </label>
-                <select
-                  name="purpose"
-                  defaultValue="PURCHASE"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {Object.entries(casePurposeLabel).map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Field label="סכום מבוקש (₪)" name="amount" type="number" dir="ltr" />
-              <button
-                type="submit"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                צור תיק
-              </button>
+              <SelectField
+                label="מטרה"
+                name="purpose"
+                defaultValue="PURCHASE"
+                options={Object.entries(casePurposeLabel)}
+              />
+              <Field
+                label="סכום מבוקש (₪)"
+                name="amount"
+                type="number"
+                dir="ltr"
+                inputMode="numeric"
+              />
+              <SubmitButton>צור תיק</SubmitButton>
             </form>
           </details>
         </section>
@@ -145,28 +138,30 @@ export default async function ContactDetail({
         >
           <input type="hidden" name="id" value={contact.id} />
           <Field label="שם" name="name" defaultValue={contact.name} required />
-          <div>
-            <label className="block text-sm font-medium text-slate-700">סוג</label>
-            <select
-              name="type"
-              defaultValue={contact.type}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="LEAD">ליד</option>
-              <option value="CLIENT">לקוח</option>
-            </select>
-          </div>
+          <SelectField
+            label="סוג"
+            name="type"
+            defaultValue={contact.type}
+            options={[
+              ["LEAD", "ליד"],
+              ["CLIENT", "לקוח"],
+            ]}
+          />
           <Field
             label="טלפון"
             name="phone"
             defaultValue={contact.phone ?? ""}
             dir="ltr"
+            type="tel"
+            inputMode="tel"
           />
           <Field
             label="אימייל"
             name="email"
             defaultValue={contact.email ?? ""}
             dir="ltr"
+            type="email"
+            inputMode="email"
           />
           <Field
             label="מקור"
@@ -174,24 +169,19 @@ export default async function ContactDetail({
             defaultValue={contact.source ?? ""}
           />
           <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              שמירה
-            </button>
+            <SubmitButton>שמירה</SubmitButton>
           </div>
         </form>
         <form
           action={deleteContact.bind(null, contact.id)}
           className="mt-4 border-t border-slate-100 pt-4"
         >
-          <button
-            type="submit"
-            className="text-sm font-medium text-red-600 hover:underline"
+          <SubmitButton
+            variant="danger"
+            confirmMessage={`למחוק את ${contact.name} לצמיתות, כולל כל התיקים והפעילות?`}
           >
             מחק לקוח/ליד (כולל כל התיקים)
-          </button>
+          </SubmitButton>
         </form>
       </details>
     </div>

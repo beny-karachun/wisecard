@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { AlertTriangle, Check, Save } from "lucide-react";
 import {
   defaultRates,
   evaluateMix,
@@ -24,7 +25,7 @@ import { formatCurrency } from "@/lib/format";
 import { saveScenario } from "@/app/app/actions";
 
 const TRACK_COLORS: Record<TrackType, string> = {
-  PRIME: "bg-indigo-500",
+  PRIME: "bg-blue-500",
   FIXED_UNLINKED: "bg-emerald-500",
   FIXED_LINKED: "bg-teal-500",
   VARIABLE_UNLINKED: "bg-amber-500",
@@ -53,6 +54,15 @@ function allocFromResult(r: MixResult): Record<TrackType, number> {
   return a;
 }
 
+function sameAlloc(
+  a: Record<TrackType, number>,
+  r: MixResult | null | undefined,
+): boolean {
+  if (!r) return false;
+  const b = allocFromResult(r);
+  return TRACKS.every((t) => (a[t.type] ?? 0) === (b[t.type] ?? 0));
+}
+
 function CompositionBar({ legs }: { legs: MixResult["legs"] }) {
   return (
     <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -72,7 +82,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-lg font-bold text-slate-900">{value}</p>
+      <p className="text-lg font-bold text-slate-900 tabular-nums">{value}</p>
     </div>
   );
 }
@@ -81,22 +91,28 @@ function MixCard({
   title,
   subtitle,
   result,
+  active,
   onUse,
 }: {
   title: string;
   subtitle: string;
   result: MixResult | null;
+  active: boolean;
   onUse: () => void;
 }) {
   if (!result) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-400">
+      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
         {title} — לא נמצא תמהיל חוקי
       </div>
     );
   }
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">
+    <div
+      className={`flex flex-col rounded-xl border bg-white p-4 transition ${
+        active ? "border-blue-400 ring-1 ring-blue-200" : "border-slate-200"
+      }`}
+    >
       <div className="flex items-baseline justify-between">
         <h3 className="font-semibold text-slate-900">{title}</h3>
         <span className="text-xs text-slate-400">{subtitle}</span>
@@ -107,7 +123,7 @@ function MixCard({
       </div>
       <p className="mt-2 text-xs text-slate-500">
         בתרחיש לחץ (שנה 5):{" "}
-        <span className="font-semibold text-slate-700">
+        <span className="font-semibold text-slate-700 tabular-nums">
           {formatCurrency(result.stressedPayment)}
         </span>
       </p>
@@ -117,19 +133,25 @@ function MixCard({
           {result.legs.map((l) => (
             <li key={l.type} className="flex justify-between">
               <span>{l.label}</span>
-              <span className="font-medium">{l.pct}%</span>
+              <span className="font-medium tabular-nums">{l.pct}%</span>
             </li>
           ))}
         </ul>
       </div>
-      <button
-        onClick={onUse}
-        className="mt-auto pt-4"
-      >
-        <span className="block rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100">
-          השתמש בתמהיל זה
-        </span>
-      </button>
+      <div className="mt-auto pt-4">
+        <button
+          onClick={onUse}
+          disabled={active}
+          className={`inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+            active
+              ? "border-transparent bg-blue-600 text-white"
+              : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+          }`}
+        >
+          {active && <Check className="h-4 w-4" aria-hidden="true" />}
+          {active ? "בשימוש בבונה התמהילים" : "השתמש בתמהיל זה"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -150,7 +172,7 @@ function NumField({
   return (
     <label className="block">
       <span className="block text-sm font-medium text-slate-700">{label}</span>
-      <span className="mt-1 flex items-center rounded-lg border border-slate-300 px-3 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200">
+      <span className="mt-1 flex items-center rounded-lg border border-slate-300 px-3 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200">
         <input
           type="number"
           dir="ltr"
@@ -304,7 +326,7 @@ export function Simulator({
         <p className="mt-1 text-sm text-slate-500">
           {caseName && (
             <>
-              <span className="font-semibold text-indigo-600">
+              <span className="font-semibold text-blue-600">
                 תיק: {caseName}
               </span>
               {" · "}
@@ -345,7 +367,7 @@ export function Simulator({
             <select
               value={ltvBasis}
               onChange={(e) => setLtvBasis(e.target.value as LtvBasis)}
-              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             >
               {Object.entries(ltvBasisLabel).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -367,7 +389,7 @@ export function Simulator({
         )}
 
         <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
+          <summary className="cursor-pointer text-sm font-semibold text-blue-600">
             עריכת ריביות והנחות
           </summary>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -402,24 +424,28 @@ export function Simulator({
             title="החזר חודשי מינימלי"
             subtitle="payment"
             result={opt?.byPayment ?? null}
+            active={sameAlloc(alloc, opt?.byPayment)}
             onUse={() => opt?.byPayment && setAlloc(allocFromResult(opt.byPayment))}
           />
           <MixCard
             title="עלות כוללת מינימלית"
             subtitle="cost"
             result={opt?.byCost ?? null}
+            active={sameAlloc(alloc, opt?.byCost)}
             onUse={() => opt?.byCost && setAlloc(allocFromResult(opt.byCost))}
           />
           <MixCard
             title="סיכון מינימלי"
             subtitle="risk"
             result={opt?.byRisk ?? null}
+            active={sameAlloc(alloc, opt?.byRisk)}
             onUse={() => opt?.byRisk && setAlloc(allocFromResult(opt.byRisk))}
           />
           <MixCard
             title="מאוזן"
             subtitle="balanced"
             result={opt?.balanced ?? null}
+            active={sameAlloc(alloc, opt?.balanced)}
             onUse={() => opt?.balanced && setAlloc(allocFromResult(opt.balanced))}
           />
         </div>
@@ -430,7 +456,7 @@ export function Simulator({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">בניית תמהיל ידנית</h2>
           <span
-            className={`text-sm font-semibold ${
+            className={`text-sm font-semibold tabular-nums ${
               Math.round(allocSum) === 100 ? "text-green-600" : "text-amber-600"
             }`}
           >
@@ -488,9 +514,15 @@ export function Simulator({
             </div>
 
             {!manual.feasible && (
-              <ul className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <ul className="space-y-1 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                 {manual.violations.map((v) => (
-                  <li key={v}>• {v}</li>
+                  <li key={v} className="flex items-center gap-2">
+                    <AlertTriangle
+                      className="h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    {v}
+                  </li>
                 ))}
               </ul>
             )}
@@ -511,17 +543,19 @@ export function Simulator({
                   {manual.legs.map((l) => (
                     <tr key={l.type} className="border-t border-slate-100">
                       <td className="px-3 py-2 text-slate-800">{l.label}</td>
-                      <td className="px-3 py-2 text-slate-600">{l.pct}%</td>
-                      <td className="px-3 py-2 text-slate-600">
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">
+                        {l.pct}%
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">
                         {formatCurrency(l.amount)}
                       </td>
-                      <td className="px-3 py-2 text-slate-600" dir="ltr">
+                      <td className="px-3 py-2 text-slate-600 tabular-nums" dir="ltr">
                         {l.rate}%
                       </td>
-                      <td className="px-3 py-2 text-slate-600">
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">
                         {Math.round(l.termMonths / 12)} שנים
                       </td>
-                      <td className="px-3 py-2 text-slate-600">
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">
                         {formatCurrency(l.firstPayment)}
                       </td>
                     </tr>
@@ -534,8 +568,9 @@ export function Simulator({
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
+                <Save className="h-4 w-4" aria-hidden="true" />
                 {saving ? "שומר..." : "שמור תמהיל לתיק"}
               </button>
             )}

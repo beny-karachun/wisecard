@@ -5,6 +5,7 @@ import {
   updateBorrower,
   upsertProperty,
 } from "@/app/app/actions";
+import { SubmitButton } from "@/components/submit-button";
 import {
   employmentLabel,
   ltvBasisLabel,
@@ -14,7 +15,7 @@ import { LTV_CAPS, PTI_MAX } from "@/lib/mortgage/tracks";
 import { formatCurrency } from "@/lib/format";
 
 const inputCls =
-  "w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200";
+  "w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
 
 function SummaryChip({
   label,
@@ -42,13 +43,16 @@ function SummaryChip({
 function BorrowerFields({ borrower }: { borrower?: Borrower }) {
   return (
     <>
-      <input
-        name="name"
-        required
-        defaultValue={borrower?.name}
-        placeholder="שם הלווה"
-        className={`${inputCls} min-w-28 flex-1`}
-      />
+      <label className="block min-w-28 flex-1">
+        <span className="text-xs text-slate-500">שם הלווה</span>
+        <input
+          name="name"
+          required
+          defaultValue={borrower?.name}
+          placeholder="ישראל ישראלי"
+          className={inputCls}
+        />
+      </label>
       <label className="block">
         <span className="text-xs text-slate-500">הכנסה נטו</span>
         <input
@@ -148,18 +152,14 @@ export function CaseFinances({
                 <input type="hidden" name="id" value={b.id} />
                 <input type="hidden" name="caseId" value={caseId} />
                 <BorrowerFields borrower={b} />
-                <button
-                  type="submit"
-                  className="rounded-lg border border-indigo-200 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
-                >
-                  עדכן
-                </button>
-                <button
+                <SubmitButton variant="subtle">עדכן</SubmitButton>
+                <SubmitButton
+                  variant="danger"
                   formAction={deleteBorrower.bind(null, b.id)}
-                  className="px-1 py-1.5 text-xs text-red-600 hover:underline"
+                  confirmMessage={`למחוק את הלווה ${b.name}?`}
                 >
                   מחק
-                </button>
+                </SubmitButton>
               </form>
             ))}
 
@@ -169,12 +169,7 @@ export function CaseFinances({
             >
               <input type="hidden" name="caseId" value={caseId} />
               <BorrowerFields />
-              <button
-                type="submit"
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                הוסף לווה
-              </button>
+              <SubmitButton>הוסף לווה</SubmitButton>
             </form>
           </div>
         </div>
@@ -234,12 +229,7 @@ export function CaseFinances({
                 </select>
               </label>
             </div>
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              {property ? "עדכן נכס" : "שמור נכס"}
-            </button>
+            <SubmitButton>{property ? "עדכן נכס" : "שמור נכס"}</SubmitButton>
           </form>
         </div>
       </div>

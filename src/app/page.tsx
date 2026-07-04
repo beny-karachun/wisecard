@@ -1,41 +1,51 @@
 import Link from "next/link";
+import {
+  Calculator,
+  FileText,
+  LineChart,
+  Users,
+} from "lucide-react";
 
 const features = [
   {
     title: "ניהול לקוחות (CRM)",
     desc: "לידים, לקוחות, צנרת מכירות, משימות ותזכורות — הכול בכרטיס לקוח אחד.",
+    icon: Users,
   },
   {
     title: "סימולטור משכנתאות",
     desc: "חישוב מסלולים, לוח שפיצר, השוואת תמהילים ואופטימיזציה חכמה.",
+    icon: Calculator,
   },
   {
     title: "מרכז נתונים פיננסי",
     desc: "ריביות, מדדים ועוגנים מתעדכנים אוטומטית מנתוני בנק ישראל והלמ״ס.",
+    icon: LineChart,
   },
   {
     title: "מסמכים ובינה מלאכותית",
     desc: "קריאת דפי יתרות ואישורים עקרוניים, שאלון חכם ויצירת דוחות ממותגים.",
+    icon: FileText,
   },
 ];
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-16">
+    <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6 py-16">
       <header className="flex items-center justify-between">
         <span className="text-2xl font-bold tracking-tight text-slate-900">
-          Wise<span className="text-indigo-600">Card</span>
+          Wise<span className="text-blue-600">Card</span>
         </span>
         <Link
           href="/sign-in"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           כניסה למערכת
         </Link>
       </header>
 
       <section className="mt-24 max-w-2xl">
-        <p className="mb-3 text-sm font-semibold text-indigo-600">
+        <p className="mb-3 text-sm font-semibold text-blue-600">
           תוכנה ליועצי משכנתאות
         </p>
         <h1 className="text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
@@ -48,7 +58,7 @@ export default function Home() {
         <div className="mt-8 flex gap-3">
           <Link
             href="/sign-in"
-            className="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             התחברות
           </Link>
@@ -59,9 +69,14 @@ export default function Home() {
         {features.map((f) => (
           <div
             key={f.title}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200"
           >
-            <h2 className="text-lg font-semibold text-slate-900">{f.title}</h2>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <f.icon className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+              {f.title}
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               {f.desc}
             </p>
@@ -70,7 +85,8 @@ export default function Home() {
       </section>
 
       <footer className="mt-auto pt-24 text-sm text-slate-400">
-        WiseCard · Phase 0 skeleton · בנוי עם Next.js
+        WiseCard · מערכת לייעוץ משכנתאות · הנתונים מבוססים על מקורות פתוחים של
+        בנק ישראל והלמ״ס
       </footer>
     </main>
   );

@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  FolderKanban,
+  ListChecks,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { ActivityTimeline } from "@/components/activity-timeline";
@@ -25,10 +31,20 @@ export default async function DashboardPage() {
   ]);
 
   const stats = [
-    { label: "אנשי קשר", value: contacts, href: "/app/contacts" },
-    { label: "לידים", value: leads, href: "/app/contacts" },
-    { label: "תיקים פעילים", value: openCases, href: "/app/cases" },
-    { label: "משימות פתוחות", value: openTasks, href: "/app/tasks" },
+    { label: "אנשי קשר", value: contacts, href: "/app/contacts", icon: Users },
+    { label: "לידים", value: leads, href: "/app/contacts", icon: UserPlus },
+    {
+      label: "תיקים פעילים",
+      value: openCases,
+      href: "/app/cases",
+      icon: FolderKanban,
+    },
+    {
+      label: "משימות פתוחות",
+      value: openTasks,
+      href: "/app/tasks",
+      icon: ListChecks,
+    },
   ];
 
   return (
@@ -40,9 +56,14 @@ export default async function DashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-xl border border-slate-200 bg-white p-4 transition hover:shadow-sm"
+            className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-200 hover:shadow-sm"
           >
-            <p className="text-2xl font-bold text-slate-900">{s.value}</p>
+            <div className="flex items-start justify-between">
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                {s.value}
+              </p>
+              <s.icon className="h-5 w-5 text-slate-300" aria-hidden="true" />
+            </div>
             <p className="mt-1 text-sm text-slate-500">{s.label}</p>
           </Link>
         ))}

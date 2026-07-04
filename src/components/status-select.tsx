@@ -22,7 +22,8 @@ export function StatusSelect({
         const value = e.target.value;
         startTransition(() => updateCaseStatus(caseId, value));
       }}
-      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium outline-none focus:border-indigo-500 disabled:opacity-50"
+      aria-label="סטטוס התיק"
+      className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
     >
       {caseStatusOrder.map((s) => (
         <option key={s} value={s}>

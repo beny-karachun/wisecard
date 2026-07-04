@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { ContactTypeBadge } from "@/components/badges";
-import { Field } from "@/components/field";
+import { Field, SelectField } from "@/components/field";
+import { SubmitButton } from "@/components/submit-button";
 import { formatDate } from "@/lib/format";
 import { createContact } from "@/app/app/actions";
 
@@ -22,35 +24,29 @@ export default async function ContactsPage() {
       </div>
 
       <details className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
-          + לקוח / ליד חדש
+        <summary className="inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-blue-600 transition hover:text-blue-700">
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+          לקוח / ליד חדש
         </summary>
         <form
           action={createContact}
           className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"
         >
           <Field label="שם" name="name" required />
-          <div>
-            <label className="block text-sm font-medium text-slate-700">סוג</label>
-            <select
-              name="type"
-              defaultValue="LEAD"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="LEAD">ליד</option>
-              <option value="CLIENT">לקוח</option>
-            </select>
-          </div>
-          <Field label="טלפון" name="phone" dir="ltr" />
-          <Field label="אימייל" name="email" dir="ltr" />
+          <SelectField
+            label="סוג"
+            name="type"
+            defaultValue="LEAD"
+            options={[
+              ["LEAD", "ליד"],
+              ["CLIENT", "לקוח"],
+            ]}
+          />
+          <Field label="טלפון" name="phone" dir="ltr" type="tel" inputMode="tel" />
+          <Field label="אימייל" name="email" dir="ltr" type="email" inputMode="email" />
           <Field label="מקור" name="source" placeholder="פייסבוק, המלצה..." />
           <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              שמירה
-            </button>
+            <SubmitButton>שמירה</SubmitButton>
           </div>
         </form>
       </details>
@@ -82,7 +78,7 @@ export default async function ContactsPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/app/contacts/${c.id}`}
-                      className="font-medium text-indigo-600 hover:underline"
+                      className="font-medium text-blue-600 hover:underline"
                     >
                       {c.name}
                     </Link>
@@ -90,11 +86,13 @@ export default async function ContactsPage() {
                   <td className="px-4 py-3">
                     <ContactTypeBadge type={c.type} />
                   </td>
-                  <td className="px-4 py-3 text-slate-600" dir="ltr">
+                  <td className="px-4 py-3 text-slate-600 tabular-nums" dir="ltr">
                     {c.phone ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{c._count.cases}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-600 tabular-nums">
+                    {c._count.cases}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 tabular-nums">
                     {formatDate(c.createdAt)}
                   </td>
                 </tr>

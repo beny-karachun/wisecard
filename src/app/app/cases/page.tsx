@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
   casePurposeLabel,
+  caseStatusColor,
   caseStatusLabel,
   caseStatusOrder,
 } from "@/lib/labels";
@@ -38,14 +39,18 @@ export default async function CasesPage() {
               <h2 className="text-sm font-semibold text-slate-700">
                 {caseStatusLabel[col.status]}
               </h2>
-              <span className="text-xs text-slate-400">{col.items.length}</span>
+              <span
+                className={`inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${caseStatusColor[col.status]}`}
+              >
+                {col.items.length}
+              </span>
             </div>
             <div className="mt-2 space-y-2">
               {col.items.map((c) => (
                 <Link
                   key={c.id}
                   href={`/app/cases/${c.id}`}
-                  className="block rounded-xl border border-slate-200 bg-white p-3 transition hover:shadow-sm"
+                  className="block rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:shadow-sm"
                 >
                   <p className="text-sm font-medium text-slate-900">
                     {c.contact.name}
@@ -53,14 +58,14 @@ export default async function CasesPage() {
                   <p className="mt-0.5 text-xs text-slate-500">
                     {c.title ?? casePurposeLabel[c.purpose]}
                   </p>
-                  <p className="mt-2 text-xs font-medium text-slate-600">
+                  <p className="mt-2 text-xs font-medium text-slate-600 tabular-nums">
                     {formatCurrency(c.amount)}
                   </p>
                 </Link>
               ))}
               {col.items.length === 0 && (
-                <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-300">
-                  —
+                <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+                  אין תיקים בשלב זה
                 </p>
               )}
             </div>

@@ -15,7 +15,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 p-3">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-base font-bold">{value}</p>
+      <p className="text-base font-bold tabular-nums">{value}</p>
     </div>
   );
 }
@@ -115,10 +115,14 @@ export default async function ReportPage({
           {legs.map((l) => (
             <tr key={l.type} className="border-b border-slate-100">
               <td className="py-2">{TRACK_BY_TYPE[l.type].label}</td>
-              <td>{l.pct}%</td>
-              <td>{formatCurrency((scenario.amount * l.pct) / 100)}</td>
-              <td dir="ltr">{l.rate}%</td>
-              <td>
+              <td className="tabular-nums">{l.pct}%</td>
+              <td className="tabular-nums">
+                {formatCurrency((scenario.amount * l.pct) / 100)}
+              </td>
+              <td className="tabular-nums" dir="ltr">
+                {l.rate}%
+              </td>
+              <td className="tabular-nums">
                 {Math.round((l.termMonths ?? scenario.termMonths) / 12)} שנים
               </td>
             </tr>
@@ -151,9 +155,9 @@ export default async function ReportPage({
         <tbody>
           {shown.map((m) => (
             <tr key={m.year} className="border-b border-slate-100">
-              <td className="py-2">{m.year}</td>
-              <td>{formatCurrency(m.payment)}</td>
-              <td>{formatCurrency(m.balance)}</td>
+              <td className="py-2 tabular-nums">{m.year}</td>
+              <td className="tabular-nums">{formatCurrency(m.payment)}</td>
+              <td className="tabular-nums">{formatCurrency(m.balance)}</td>
             </tr>
           ))}
         </tbody>

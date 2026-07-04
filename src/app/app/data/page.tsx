@@ -63,12 +63,15 @@ export default async function DataCenterPage() {
                 key={c.label}
                 className="rounded-xl border border-slate-200 bg-white p-4"
               >
-                <p className="text-2xl font-bold text-slate-900">
+                <p
+                  className="text-2xl font-bold text-slate-900 tabular-nums"
+                  dir="ltr"
+                >
                   {c.value != null ? `${c.value}${c.suffix}` : "—"}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">{c.label}</p>
                 {c.date && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 tabular-nums">
                     {formatDate(c.date)}
                   </p>
                 )}
@@ -96,10 +99,13 @@ export default async function DataCenterPage() {
                     className="border-b border-slate-100 last:border-0"
                   >
                     <td className="px-4 py-2 text-slate-700">{r.label}</td>
-                    <td className="px-4 py-2 font-semibold text-slate-900" dir="ltr">
+                    <td
+                      className="px-4 py-2 font-semibold text-slate-900 tabular-nums"
+                      dir="ltr"
+                    >
                       {r.rate ? `${r.rate.value}%` : "—"}
                     </td>
-                    <td className="px-4 py-2 text-slate-600" dir="ltr">
+                    <td className="px-4 py-2 text-slate-600 tabular-nums" dir="ltr">
                       {r.rate?.anchor != null
                         ? `${r.rate.anchor}% + ${r.rate.margin}%`
                         : "—"}
@@ -137,8 +143,10 @@ export default async function DataCenterPage() {
                     <td className="px-4 py-2 text-slate-700">
                       {formatMonth(r.date)}
                     </td>
-                    <td className="px-4 py-2 text-slate-600">{r.index ?? "—"}</td>
-                    <td className="px-4 py-2 text-slate-600">
+                    <td className="px-4 py-2 text-slate-600 tabular-nums" dir="ltr">
+                      {r.index ?? "—"}
+                    </td>
+                    <td className="px-4 py-2 text-slate-600 tabular-nums" dir="ltr">
                       {r.yoy != null ? `${r.yoy}%` : "—"}
                     </td>
                   </tr>
