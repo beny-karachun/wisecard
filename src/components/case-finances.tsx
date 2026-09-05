@@ -66,7 +66,7 @@ function BorrowerFields({ borrower }: { borrower?: Borrower }) {
         />
       </label>
       <label className="block">
-        <span className="text-xs text-slate-500">התחייבויות</span>
+        <span className="text-xs text-slate-500">הוצאות קבועות מוכרות</span>
         <input
           name="monthlyObligations"
           type="number"
@@ -108,7 +108,7 @@ export function CaseFinances({
 }) {
   const income = borrowers.reduce((s, b) => s + b.monthlyIncome, 0);
   const obligations = borrowers.reduce((s, b) => s + b.monthlyObligations, 0);
-  const capacity = Math.max(0, income * PTI_MAX - obligations);
+  const capacity = Math.max(0, (income - obligations) * PTI_MAX);
 
   const ltvCap = property ? LTV_CAPS[property.ltvBasis] : null;
   const ltv =
@@ -122,10 +122,16 @@ export function CaseFinances({
 
       {(income > 0 || ltv != null) && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <SummaryChip label="הכנסה נטו למשק בית" value={formatCurrency(income)} />
-          <SummaryChip label="התחייבויות קיימות" value={formatCurrency(obligations)} />
           <SummaryChip
-            label="יכולת החזר (עד 50%)"
+            label="הכנסה נטו למשק בית"
+            value={formatCurrency(income)}
+          />
+          <SummaryChip
+            label="התחייבויות קיימות"
+            value={formatCurrency(obligations)}
+          />
+          <SummaryChip
+            label="50% מההכנסה הפנויה (אומדן)"
             value={formatCurrency(Math.round(capacity))}
           />
           {ltv != null && ltvCap != null && (
@@ -138,6 +144,11 @@ export function CaseFinances({
         </div>
       )}
 
+      <p className="mt-3 text-xs leading-6 text-slate-500">
+        הוצאות קבועות: התחייבויות מעל 18 חודשים והוצאות נוספות הנדרשות לפי הגדרת
+        הבנק. סיווג האשראי הקיים, מיחזור והקלות נבחנים בנפרד בסימולטור; האומדן
+        כאן אינו אישור מימון.
+      </p>
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Borrowers */}
         <div className="rounded-xl border border-slate-200 bg-white p-4">

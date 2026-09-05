@@ -15,7 +15,8 @@ export interface TrackDef {
   label: string; // Hebrew
   linked: boolean; // principal indexed to CPI (מדד)
   fixed: boolean; // counts toward the "≥ ⅓ fixed" rule
-  isPrime: boolean; // counts toward the "≤ ⅔ prime" rule
+  isPrime: boolean; // descriptive exposure; the regulatory cap applies to ALL variable tracks
+  resetMonths: number | null;
   variable: boolean; // rate can move (stressed in the risk scenario)
   inOptimizer: boolean; // searched by default (niche tracks are manual-only)
   defaultRate: number; // annual nominal % (real % for linked tracks)
@@ -28,6 +29,7 @@ export const TRACKS: TrackDef[] = [
     linked: false,
     fixed: false,
     isPrime: true,
+    resetMonths: 1,
     variable: true,
     inOptimizer: true,
     defaultRate: 6.0,
@@ -38,6 +40,7 @@ export const TRACKS: TrackDef[] = [
     linked: false,
     fixed: true,
     isPrime: false,
+    resetMonths: null,
     variable: false,
     inOptimizer: true,
     defaultRate: 5.0,
@@ -48,6 +51,7 @@ export const TRACKS: TrackDef[] = [
     linked: true,
     fixed: true,
     isPrime: false,
+    resetMonths: null,
     variable: false,
     inOptimizer: true,
     defaultRate: 3.2,
@@ -58,6 +62,7 @@ export const TRACKS: TrackDef[] = [
     linked: false,
     fixed: false,
     isPrime: false,
+    resetMonths: 60,
     variable: true,
     inOptimizer: true,
     defaultRate: 5.3,
@@ -68,6 +73,7 @@ export const TRACKS: TrackDef[] = [
     linked: true,
     fixed: false,
     isPrime: false,
+    resetMonths: 60,
     variable: true,
     inOptimizer: true,
     defaultRate: 3.0,
@@ -78,6 +84,7 @@ export const TRACKS: TrackDef[] = [
     linked: false,
     fixed: false,
     isPrime: false,
+    resetMonths: 12,
     variable: true,
     inOptimizer: false,
     defaultRate: 5.6,
@@ -88,6 +95,7 @@ export const TRACKS: TrackDef[] = [
     linked: true,
     fixed: true,
     isPrime: false,
+    resetMonths: null,
     variable: false,
     inOptimizer: false,
     defaultRate: 3.0,
@@ -98,27 +106,38 @@ export const TRACK_BY_TYPE: Record<TrackType, TrackDef> = Object.fromEntries(
   TRACKS.map((t) => [t.type, t]),
 ) as Record<TrackType, TrackDef>;
 
-// Assumed annual CPI for linked tracks (within BOI's 1–3% target band).
+// Illustrative, editable assumption; not a CPI forecast.
 export const DEFAULT_CPI = 2.5;
-
-// Bank of Israel mortgage-composition rules (directive on housing-loan mix).
-export const FIXED_MIN_FRACTION = 1 / 3; // ≥ ⅓ at a fixed rate
-export const PRIME_MAX_FRACTION = 2 / 3; // ≤ ⅔ prime
-export const PTI_MAX = 0.5; // (payment + obligations) / income ≤ 50%
-export const MAX_TERM_MONTHS = 360; // 30 years
-
-// Max loan-to-value per BOI directive, by purchase profile.
-// Mirrors the Prisma `LtvBasis` enum.
-export type LtvBasis = "FIRST_HOME" | "UPGRADER" | "INVESTMENT";
-
-export const LTV_CAPS: Record<LtvBasis, number> = {
+export const VARIABLE_MAX_PCT = 66.66;
+export const FIXED_MIN_FRACTION = (100 - VARIABLE_MAX_PCT) / 100;
+export const PTI_MAX = 0.5;
+export const MAX_TERM_MONTHS = 360;
+export const MAX_PRINCIPAL = 100_000_000;
+export const RULES_REVIEWED_ON = "2026-09-05";
+export const HOUSING_PTI_CHANGE_DATE = "2026-10-01";
+export const RULES_SOURCE = "https://www.boi.org.il/media/hjrlkrse/h2852.pdf";
+export type LtvBasis =
+  "FIRST_HOME" | "UPGRADER" | "INVESTMENT" | "REFINANCE" | "CONSOLIDATION";
+// null means that a single fixed LTV limit cannot determine eligibility.
+export const LTV_CAPS: Record<LtvBasis, number | null> = {
   FIRST_HOME: 0.75,
   UPGRADER: 0.7,
   INVESTMENT: 0.5,
+  REFINANCE: null,
+  CONSOLIDATION: 0.5,
 };
-
-// Stress scenario for the risk metric: variable rates +2pp, CPI +1.5pp,
-// payment observed at year 5 (a common advisory rule of thumb).
+export function maximumLoan(
+  value: number,
+  basis: LtvBasis,
+  concession = false,
+): number | null {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (basis === "REFINANCE") return null;
+  if (basis === "CONSOLIDATION" && concession)
+    return Math.min(value * 0.7, value * 0.5 + 200_000);
+  return value * LTV_CAPS[basis]!;
+}
 export const STRESS_RATE_BUMP = 2;
 export const STRESS_CPI_BUMP = 1.5;
+// Shock boundary: the first affected period is month 61 (after five full years).
 export const STRESS_MONTH = 60;

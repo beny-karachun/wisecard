@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import {
+  scenarioInputSchema,
+  ENGINE_VERSION,
+  inputError,
+} from "@/lib/mortgage/input";
+import { simulate } from "@/lib/mortgage/engine";
+import { documentChecklist } from "@/lib/workspace";
 import { syncMarketData } from "@/lib/market/sync";
 
 // Empty form fields ("") become undefined.
@@ -41,6 +48,7 @@ export async function createContact(formData: FormData) {
   });
 
   revalidatePath("/app/contacts");
+  revalidatePath("/app");
   redirect(`/app/contacts/${contact.id}`);
 }
 
@@ -70,6 +78,7 @@ export async function updateContact(formData: FormData) {
 
   revalidatePath(`/app/contacts/${id}`);
   revalidatePath("/app/contacts");
+  revalidatePath("/app");
 }
 
 export async function convertContact(id: string) {
@@ -80,12 +89,14 @@ export async function convertContact(id: string) {
   });
   revalidatePath(`/app/contacts/${id}`);
   revalidatePath("/app/contacts");
+  revalidatePath("/app");
 }
 
 export async function deleteContact(id: string) {
   const { organizationId } = await requireUser();
   await prisma.contact.deleteMany({ where: { id, organizationId } });
   revalidatePath("/app/contacts");
+  revalidatePath("/app");
   redirect("/app/contacts");
 }
 
@@ -123,10 +134,14 @@ export async function createCase(formData: FormData) {
       title: data.title ?? null,
       purpose: data.purpose,
       amount: data.amount ?? null,
+      documents: {
+        create: documentChecklist(data.purpose).map((title) => ({ title })),
+      },
     },
   });
 
   revalidatePath("/app/cases");
+  revalidatePath("/app");
   redirect(`/app/cases/${created.id}`);
 }
 
@@ -148,12 +163,14 @@ export async function updateCaseStatus(caseId: string, status: string) {
   });
   revalidatePath(`/app/cases/${caseId}`);
   revalidatePath("/app/cases");
+  revalidatePath("/app");
 }
 
 export async function deleteCase(id: string) {
   const { organizationId } = await requireUser();
   await prisma.case.deleteMany({ where: { id, organizationId } });
   revalidatePath("/app/cases");
+  revalidatePath("/app");
   redirect("/app/cases");
 }
 
@@ -238,7 +255,13 @@ const propertySchema = z.object({
   value: z.coerce.number().int().positive(),
   city: z.string().trim().optional(),
   type: z.enum(["APARTMENT", "HOUSE", "PENTHOUSE", "LAND", "OTHER"]),
-  ltvBasis: z.enum(["FIRST_HOME", "UPGRADER", "INVESTMENT"]),
+  ltvBasis: z.enum([
+    "FIRST_HOME",
+    "UPGRADER",
+    "INVESTMENT",
+    "REFINANCE",
+    "CONSOLIDATION",
+  ]),
 });
 
 export async function upsertProperty(formData: FormData) {
@@ -305,6 +328,7 @@ export async function createTask(formData: FormData) {
 
   if (data.caseId) revalidatePath(`/app/cases/${data.caseId}`);
   revalidatePath("/app/tasks");
+  revalidatePath("/app");
 }
 
 export async function toggleTask(id: string) {
@@ -322,6 +346,7 @@ export async function toggleTask(id: string) {
 
   if (task.caseId) revalidatePath(`/app/cases/${task.caseId}`);
   revalidatePath("/app/tasks");
+  revalidatePath("/app");
 }
 
 // ---------------------------------------------------------------------------
@@ -379,62 +404,41 @@ export async function createActivity(formData: FormData) {
 // Scenarios (saved mortgage mixes)
 // ---------------------------------------------------------------------------
 
-const scenarioSchema = z.object({
-  caseId: z.string().min(1),
-  label: z.string().trim().optional(),
-  amount: z.number().int().nonnegative(),
-  termMonths: z.number().int().positive(),
-  cpi: z.number(),
-  firstPayment: z.number(),
-  totalPaid: z.number(),
-  feasible: z.boolean(),
-  legs: z
-    .array(
-      z.object({
-        type: z.enum([
-          "PRIME",
-          "FIXED_UNLINKED",
-          "FIXED_LINKED",
-          "VARIABLE_UNLINKED",
-          "VARIABLE_LINKED",
-          "MAKAM",
-          "ELIGIBILITY",
-        ]),
-        pct: z.number(),
-        rate: z.number(),
-        termMonths: z.number().int().positive().optional(),
-      }),
-    )
-    .min(1),
-});
-
-export async function saveScenario(input: unknown) {
+export async function saveScenario(
+  input: unknown,
+): Promise<{ id?: string; error?: string }> {
   const { organizationId } = await requireUser();
-  const data = scenarioSchema.parse(input);
-
+  const parsed = scenarioInputSchema.safeParse(input);
+  if (!parsed.success) return { error: inputError(parsed.error) };
+  const data = parsed.data;
   const owned = await prisma.case.findFirst({
     where: { id: data.caseId, organizationId },
     select: { id: true },
   });
-  if (!owned) redirect("/app/cases");
-
-  await prisma.scenario.create({
-    data: {
-      organizationId,
-      caseId: data.caseId,
-      label: data.label ?? null,
-      amount: data.amount,
-      termMonths: data.termMonths,
-      cpi: data.cpi,
-      firstPayment: Math.round(data.firstPayment),
-      totalPaid: Math.round(data.totalPaid),
-      feasible: data.feasible,
-      legs: data.legs,
-    },
-  });
-
-  revalidatePath(`/app/cases/${data.caseId}`);
-  redirect(`/app/cases/${data.caseId}`);
+  if (!owned) return { error: "התיק לא נמצא במשרד שלך." };
+  // Client-provided totals, flags and legacy fields never participate in saving.
+  const computed = simulate(data.simulation);
+  try {
+    const saved = await prisma.scenario.create({
+      data: {
+        organizationId,
+        caseId: owned.id,
+        label: data.label,
+        amount: computed.input.amount,
+        termMonths: computed.result.termMonths,
+        cpi: computed.input.cpi,
+        firstPayment: Math.round(computed.result.firstPayment * 100) / 100,
+        totalPaid: Math.round(computed.result.totalPaid * 100) / 100,
+        feasible: computed.result.assessment === "pass",
+        legs: computed.input.legs,
+        snapshot: { version: ENGINE_VERSION, input: computed.input },
+      },
+    });
+    revalidatePath(`/app/cases/${owned.id}`);
+    return { id: saved.id };
+  } catch {
+    return { error: "התמהיל לא נשמר. אפשר לנסות שוב." };
+  }
 }
 
 export async function deleteScenario(id: string) {

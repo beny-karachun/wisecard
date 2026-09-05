@@ -84,7 +84,8 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   const boiRate = boi?.value ?? null;
   return {
     boiRate,
-    prime: boiRate != null ? Math.round((boiRate + PRIME_SPREAD) * 100) / 100 : null,
+    prime:
+      boiRate != null ? Math.round((boiRate + PRIME_SPREAD) * 100) / 100 : null,
     cpiYoY: cpiYoY?.value ?? null,
     cpiIndex: cpiIndex?.value ?? null,
     boiDate: boi?.date ?? null,
@@ -92,7 +93,8 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
     updatedAt:
       [boi?.createdAt, cpiYoY?.createdAt]
         .filter(Boolean)
-        .sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] ?? null,
+        .sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] ??
+      null,
   };
 }
 
@@ -137,7 +139,8 @@ export async function getMortgageMarket(): Promise<MortgageMarket> {
     anchor && margin
       ? {
           value: round2(anchor.value + margin.value),
-          date: anchor.date,
+          // Conservative reference date: never make an older margin look current.
+          date: anchor.date < margin.date ? anchor.date : margin.date,
           anchor: anchor.value,
           margin: margin.value,
         }

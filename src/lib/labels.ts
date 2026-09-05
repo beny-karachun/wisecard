@@ -75,6 +75,8 @@ export const ltvBasisLabel: Record<LtvBasis, string> = {
   FIRST_HOME: "דירה ראשונה (עד 75%)",
   UPGRADER: "משפרי דיור (עד 70%)",
   INVESTMENT: "השקעה (עד 50%)",
+  REFINANCE: "מיחזור (נדרשת בחינה פרטנית)",
+  CONSOLIDATION: "לכל מטרה / איחוד הלוואות",
 };
 
 export const propertyTypeLabel: Record<PropertyType, string> = {

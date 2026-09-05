@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 
 const variants = {
   primary:
-    "bg-blue-600 text-white hover:bg-blue-700 disabled:hover:bg-blue-600",
+    "bg-teal-800 text-white hover:bg-teal-900 disabled:hover:bg-teal-800",
   subtle:
     "border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:hover:bg-blue-50",
   outline:
@@ -45,7 +45,7 @@ export function SubmitButton({
             }
           : undefined
       }
-      className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-60 ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-[background-color,scale] active:scale-[0.96] disabled:opacity-60 ${variants[variant]} ${className}`}
     >
       {pending && (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

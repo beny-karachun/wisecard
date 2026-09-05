@@ -48,10 +48,11 @@ model User {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  accounts   Account[]
-  sessions   Session[]
-  tasks      Task[]     @relation("TaskAssignee")
-  activities Activity[] @relation("ActivityAuthor")
+  accounts     Account[]
+  sessions     Session[]
+  tasks        Task[]        @relation("TaskAssignee")
+  activities   Activity[]    @relation("ActivityAuthor")
+  appointments Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,6 +169,16 @@ model Case {
   activities Activity[]
   scenarios  Scenario[]
 
+  nextAction         String?
+  followUpAt         DateTime?
+  expectedCompletion DateTime?
+  feeAgreed          Int            @default(0)
+  feePaid            Int            @default(0)
+  notes              String?
+  documents          CaseDocument[]
+  bankOffers         BankOffer[]
+  appointments       Appointment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -201,10 +212,14 @@ model Borrower {
 }
 
 // LTV basis per BOI directive: 75% first home / 70% upgrader / 50% investment.
+// Refinancing requires comparison to the original exposure. Non-purchase
+// concessions are discretionary and are assessed separately by the simulator.
 enum LtvBasis {
   FIRST_HOME
   UPGRADER
   INVESTMENT
+  REFINANCE
+  CONSOLIDATION
 }
 
 enum PropertyType {
@@ -289,10 +304,11 @@ model Scenario {
   amount       Int
   termMonths   Int
   cpi          Float
-  firstPayment Int
-  totalPaid    Int
+  firstPayment Float
+  totalPaid    Float
   feasible     Boolean
   legs         Json
+  snapshot     Json? // versioned engine input; null for legacy records
 
   createdAt DateTime @default(now())
 
@@ -314,4 +330,81 @@ model MarketReading {
 
   @@unique([series, date])
   @@index([series])
+}
+
+enum DocumentStatus {
+  MISSING
+  RECEIVED
+  VERIFIED
+  NOT_REQUIRED
+}
+
+enum BankOfferStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model CaseDocument {
+  id        String         @id @default(cuid())
+  caseId    String
+  case      Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title     String
+  status    DocumentStatus @default(MISSING)
+  url       String?
+  expiresAt DateTime?
+  notes     String?
+  updatedAt DateTime       @updatedAt
+
+  @@unique([caseId, title])
+  @@index([caseId, status])
+}
+
+model BankOffer {
+  id           String          @id @default(cuid())
+  caseId       String
+  case         Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  bank         String
+  banker       String?
+  phone        String?
+  status       BankOfferStatus @default(DRAFT)
+  amount       Int
+  termMonths   Int
+  firstPayment Int
+  totalPayment Int?
+  validUntil   DateTime?
+  selected     Boolean         @default(false)
+  tracks       Json
+  url          String?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([caseId, status])
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  caseId          String
+  case            Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  advisorId       String
+  advisor         User              @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  title           String
+  startsAt        DateTime
+  durationMinutes Int               @default(60)
+  location        String?
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([advisorId, startsAt])
+  @@index([caseId])
 }

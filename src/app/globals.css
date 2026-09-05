@@ -66,3 +66,55 @@ body {
     margin: 1.5cm;
   }
 }
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+@layer components {
+  .workspace {
+    @apply mx-auto w-full max-w-[1440px];
+  }
+  .panel {
+    @apply min-w-0 rounded-2xl bg-white p-5 sm:p-6;
+    box-shadow:
+      0 1px 3px #0f172a05,
+      0 0 0 1px #0f172a0b;
+  }
+  .form-label {
+    @apply flex min-w-0 flex-col gap-1.5 text-sm font-medium text-slate-700;
+  }
+  .form-input {
+    @apply min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none transition-[border-color,box-shadow] focus:border-teal-600 focus:ring-2 focus:ring-teal-100;
+  }
+  .button-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition-[background-color,scale] hover:bg-teal-900 active:scale-[0.96];
+  }
+  .button-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-[background-color,scale] hover:bg-slate-50 active:scale-[0.96];
+  }
+  .back-link {
+    @apply mb-5 inline-flex min-h-10 items-center text-xs font-medium text-slate-500 hover:text-teal-700;
+  }
+}

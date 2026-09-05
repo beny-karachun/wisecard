@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/session";
 import { AddTaskForm } from "@/components/add-task-form";
 import { TaskToggle } from "@/components/task-toggle";
 import { casePurposeLabel } from "@/lib/labels";
+import { israelDate } from "@/lib/workspace";
 import { formatDate } from "@/lib/format";
 
 type TaskRow = {
@@ -24,12 +25,11 @@ function TaskList({ tasks }: { tasks: TaskRow[] }) {
   if (tasks.length === 0) {
     return <p className="mt-3 text-sm text-slate-400">אין משימות.</p>;
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = israelDate();
   return (
     <ul className="mt-3 space-y-2">
       {tasks.map((t) => {
-        const overdue = !t.done && t.dueAt != null && t.dueAt < today;
+        const overdue = !t.done && t.dueAt != null && t.dueAt.toISOString().slice(0, 10) < today;
         return (
           <li
             key={t.id}
